@@ -1,9 +1,13 @@
 use crate::{http_errors, DbConnection};
 use crate::{models::NewUser, DbPool};
 use actix_web::{web, HttpResponse};
-use diesel::prelude::*;
+use diesel::{
+    prelude::*,
+    result::{DatabaseErrorKind, Error::DatabaseError},
+};
 use http_errors::RestError;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha512};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RegisterRequest {
@@ -26,18 +30,28 @@ pub async fn ep_register(
 
     let db = pool.get().unwrap();
 
-    register(&db, &req.username, &req.pass);
+    register(&db, &req.username, &req.pass)?;
 
     Ok(HttpResponse::Ok().body(""))
 }
 
-pub fn register(db: &DbConnection, username: &str, password: &str) {
+pub fn register(db: &DbConnection, username: &str, password: &str) -> Result<(), RestError> {
     use crate::schema::users;
 
-    let user = NewUser { username, password };
+    let mut hasher = Sha512::new();
+    hasher.update(username);
+    hasher.update(password);
+    let password = &format!("{:x}", hasher.finalize());
 
-    diesel::insert_into(users::table)
-        .values(&user)
+    if let Err(err) = diesel::insert_into(users::table)
+        .values(&NewUser { username, password })
         .execute(db)
-        .unwrap();
+    {
+        return Err(match err {
+            DatabaseError(DatabaseErrorKind::UniqueViolation, _) => RestError::UserExists,
+            _ => RestError::Unknown,
+        });
+    }
+
+    Ok(())
 }

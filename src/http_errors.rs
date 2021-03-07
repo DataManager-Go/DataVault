@@ -15,6 +15,9 @@ pub enum RestError {
     #[error("The performed action is forbidden")]
     Forbidden,
 
+    #[error("The user already exists")]
+    UserExists,
+
     // HTTP
     #[error("Bad request")]
     BadRequest,
@@ -38,9 +41,9 @@ impl RestError {
         match self {
             Self::NotFound => "NotFound".to_string(),
             Self::Forbidden => "Forbidden".to_string(),
-            Self::BadRequest => "BadRequest".to_string(),
             Self::UnknownIO => "Unknown IO".to_string(),
             Self::Unknown => "Unknown".to_string(),
+            _ => "BadRequest".to_string(),
         }
     }
 }
@@ -50,6 +53,7 @@ impl ResponseError for RestError {
         match *self {
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::BadRequest => StatusCode::BAD_REQUEST,
+            Self::UserExists => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
