@@ -4,8 +4,8 @@ extern crate dotenv;
 
 mod db;
 mod handlers;
-mod http_errors;
 mod models;
+mod response_code;
 mod schema;
 
 use actix_web::{middleware, web, App, HttpServer};
