@@ -43,6 +43,9 @@ pub enum RestError {
     #[error("Unauthorized")]
     Unauthorized,
 
+    #[error("User disabled")]
+    UserDisabled,
+
     // Unknown
     #[error("Unknown Internal Error")]
     Unknown,

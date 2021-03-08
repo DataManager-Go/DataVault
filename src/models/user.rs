@@ -56,15 +56,20 @@ impl NewUser {
     }
 
     /// Register a new user
-    pub fn create(&self, db: &DbConnection) -> Result<(), RestError> {
-        if let Err(err) = diesel::insert_into(users::table).values(self).execute(db) {
+    pub fn create(self, db: &DbConnection) -> Result<Self, RestError> {
+        let user = NewUser {
+            password: self.get_password_hashed(),
+            username: self.username,
+        };
+
+        if let Err(err) = diesel::insert_into(users::table).values(&user).execute(db) {
             return Err(match err {
                 DatabaseError(DatabaseErrorKind::UniqueViolation, _) => RestError::UserExists,
                 _ => RestError::Unknown,
             });
         }
 
-        Ok(())
+        Ok(user)
     }
 }
 
@@ -78,6 +83,10 @@ pub fn login(
     use crate::{models::login_session::NewLoginSession, schema::login_sessions::dsl::*};
 
     let user = User::find_by_name(&db, username)?;
+
+    if user.disabled {
+        return Err(RestError::UserDisabled);
+    }
 
     // Salt & validate password
     if user.password != utils::hash_pw(username, password) {

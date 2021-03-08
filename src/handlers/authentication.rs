@@ -36,6 +36,11 @@ impl FromRequest for Authenticateduser {
                 Err(_) => return err(actix_web::error::ErrorInternalServerError("Error")),
             };
 
+            // Disable disabled user // **pun not intended!!!
+            if user.disabled {
+                return err(actix_web::error::ErrorUnauthorized("User disabled"));
+            }
+
             // Success
             return ok(Authenticateduser { user, token });
         }
