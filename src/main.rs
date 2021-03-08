@@ -41,6 +41,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/user/register").to(ep_register))
             .service(web::resource("/user/login").to(ep_login))
             .service(web::resource("/files").to(ep_list_files))
+            .service(web::resource("/ping").to(handlers::ping::ep_ping))
             // Other
             .default_service(web::route().to(|| HttpResponse::MethodNotAllowed()))
     })

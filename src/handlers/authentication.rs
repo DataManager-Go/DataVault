@@ -17,19 +17,8 @@ impl FromRequest for Authenticateduser {
     type Config = ();
 
     fn from_request(req: &HttpRequest, _: &mut actix_web::dev::Payload) -> Self::Future {
-        // Get token from header
-        let token = req.headers().get("Authorization").and_then(|i| {
-            i.to_str().map(|i| String::from(i)).ok().and_then(|header| {
-                if header.trim().contains(" ") {
-                    Some(header.split(" ").collect::<Vec<&str>>()[1].to_owned())
-                } else {
-                    None
-                }
-            })
-        });
-
         // Look up session if passed token/header is valid
-        if let Some(token) = token {
+        if let Some(token) = get_bearer_token(req) {
             let db = req.app_data::<Data<DbPool>>().and_then(|i| i.get().ok());
             if db.is_none() {
                 return err(actix_web::error::ErrorInternalServerError("Error"));
@@ -56,4 +45,17 @@ impl FromRequest for Authenticateduser {
 
         err(actix_web::error::ErrorUnauthorized("Not authorized"))
     }
+}
+
+/// Get the bearer token from request headers
+pub fn get_bearer_token(req: &HttpRequest) -> Option<String> {
+    req.headers().get("Authorization").and_then(|i| {
+        i.to_str().map(|i| String::from(i)).ok().and_then(|header| {
+            if header.trim().contains(" ") {
+                Some(header.split(" ").collect::<Vec<&str>>()[1].to_owned())
+            } else {
+                None
+            }
+        })
+    })
 }
