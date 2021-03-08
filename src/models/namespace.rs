@@ -2,11 +2,12 @@ use crate::response_code::RestError;
 use crate::{schema::*, DbConnection};
 use diesel::prelude::*;
 use diesel::result::Error::NotFound;
+use serde::Serialize;
 
 /// A namespace represents a abstraction between multiple files.
 /// Each namespace, identified by its per user unique name can
 /// only exists once.
-#[derive(Queryable, Clone, Debug, Default)]
+#[derive(Queryable, Clone, Debug, Default, Serialize)]
 pub struct Namespace {
     pub id: i32,
     pub name: String,
@@ -44,7 +45,7 @@ impl<'a> CreateNamespace<'a> {
 }
 
 impl Namespace {
-    // Find a namespace by its name
+    /// Find a namespace by its name
     pub fn find_by_name(
         db: &DbConnection,
         ns_name: &str,
@@ -61,5 +62,15 @@ impl Namespace {
         }
 
         res.map(Some).map_err(|i| i.into())
+    }
+
+    /// List all namespaces of a user
+    pub fn list(db: &DbConnection, user_id: i32) -> Result<Vec<Namespace>, RestError> {
+        use crate::schema::namespaces::dsl::*;
+
+        namespaces
+            .filter(creator.eq(user_id))
+            .load::<Namespace>(db)
+            .map_err(|i| i.into())
     }
 }

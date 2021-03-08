@@ -1,13 +1,6 @@
-use super::authentication::get_bearer_token;
+use super::{authentication::get_bearer_token, response::StringResponse};
 use crate::response_code::RestError;
-
 use actix_web::web::{HttpRequest, Json};
-use serde::Serialize;
-
-#[derive(Debug, Serialize)]
-pub struct StringResponse {
-    pub content: String,
-}
 
 /// Endpoint for registering new users
 pub async fn ep_ping(req: HttpRequest) -> Result<Json<StringResponse>, RestError> {
