@@ -6,7 +6,7 @@ use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct StringResponse {
-    content: String,
+    pub content: String,
 }
 
 /// Endpoint for registering new users

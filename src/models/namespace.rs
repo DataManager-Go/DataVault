@@ -34,7 +34,7 @@ impl<'a> CreateNamespace<'a> {
             return Err(RestError::AlreadyExists);
         }
 
-        // insert new namespace
+        // Insert new namespace
         diesel::insert_into(namespaces::table)
             .values(self)
             .execute(db)?;
