@@ -1,15 +1,20 @@
-use actix_web::{error::ResponseError, http::StatusCode, HttpResponse};
+use std::fmt::Debug;
+
+use actix_web::{
+    error::{BlockingError, ResponseError},
+    http::StatusCode,
+    web::Json,
+    HttpResponse,
+};
 use serde::Serialize;
 use thiserror::Error;
 
-/// Error response format. Used as json
-/// encoding structure
-#[derive(Serialize)]
-struct ErrorResponse {
-    code: u16,
-    error: String,
-    message: String,
+#[derive(Serialize, Debug)]
+pub struct Success {
+    pub message: &'static str,
 }
+
+pub const SUCCESS: Json<Success> = Json(Success { message: "Success" });
 
 /// Possible rest error types
 #[derive(Error, Debug)]
@@ -58,9 +63,8 @@ impl ResponseError for RestError {
     fn status_code(&self) -> StatusCode {
         match *self {
             Self::NotFound => StatusCode::NOT_FOUND,
-            Self::BadRequest => StatusCode::BAD_REQUEST,
-            Self::UserExists => StatusCode::BAD_REQUEST,
-            Self::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::BadRequest | Self::UserExists => StatusCode::BAD_REQUEST,
+            Self::Forbidden => StatusCode::FORBIDDEN,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -76,6 +80,15 @@ impl ResponseError for RestError {
     }
 }
 
+/// Error response format. Used as json
+/// encoding structure
+#[derive(Serialize)]
+struct ErrorResponse {
+    code: u16,
+    error: String,
+    message: String,
+}
+
 impl From<r2d2::Error> for RestError {
     fn from(_: r2d2::Error) -> RestError {
         RestError::InternalError
@@ -87,6 +100,18 @@ impl From<std::io::Error> for RestError {
         match e.kind() {
             std::io::ErrorKind::NotFound => RestError::NotFound,
             _ => RestError::UnknownIO,
+        }
+    }
+}
+
+impl<T> From<BlockingError<T>> for RestError
+where
+    T: Into<RestError> + Debug,
+{
+    fn from(err: BlockingError<T>) -> Self {
+        match err {
+            BlockingError::Error(err) => err.into(),
+            BlockingError::Canceled => Self::Unknown,
         }
     }
 }

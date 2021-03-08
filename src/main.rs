@@ -1,12 +1,17 @@
 #[macro_use]
+extern crate log;
+
+#[macro_use]
 extern crate diesel;
 extern crate dotenv;
 
+pub mod config;
 mod db;
 mod handlers;
 mod models;
 mod response_code;
 mod schema;
+pub mod utils;
 
 use actix_web::{middleware, web, App, HttpServer};
 use diesel::prelude::*;
@@ -22,9 +27,12 @@ async fn main() -> std::io::Result<()> {
 
     let db = db::connect();
 
+    let config = config::Config::new().await.expect("Couldn't load config");
+
     HttpServer::new(move || {
         App::new()
             .data(db.clone())
+            .data(config.clone())
             .service(web::resource("/user/register").to(ep_register))
             .wrap(middleware::Logger::default())
     })

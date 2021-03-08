@@ -1,12 +1,16 @@
-use crate::{models::NewUser, response_code::RestError, DbConnection, DbPool};
+use crate::{
+    config::Config,
+    models::NewUser,
+    response_code::{RestError, Success, SUCCESS},
+    utils, DbConnection, DbPool,
+};
 
-use actix_web::{web, HttpResponse};
+use actix_web::web::{self, Json};
 use diesel::{
     prelude::*,
     result::{DatabaseErrorKind, Error::DatabaseError},
 };
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha512};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RegisterRequest {
@@ -18,9 +22,14 @@ pub struct RegisterRequest {
 /// Endpoint for registering new users
 pub async fn ep_register(
     pool: web::Data<DbPool>,
+    config: web::Data<Config>,
     req: web::Json<RegisterRequest>,
-) -> Result<HttpResponse, RestError> {
-    // TODO add registration protection
+) -> Result<Json<Success>, RestError> {
+    config
+        .server
+        .allow_registration
+        .then(|| false)
+        .ok_or(RestError::Forbidden)?;
 
     if req.username.is_empty() || req.pass.is_empty() {
         return Err(RestError::BadRequest);
@@ -28,19 +37,16 @@ pub async fn ep_register(
 
     let db = pool.get()?;
 
-    register(&db, &req.username, &req.pass)?;
+    web::block(move || register(&db, &req.username, &req.pass)).await?;
 
-    Ok(HttpResponse::Ok().body(""))
+    Ok(SUCCESS)
 }
 
 /// Register a new user
 pub fn register(db: &DbConnection, username: &str, password: &str) -> Result<(), RestError> {
     use crate::schema::users;
 
-    let mut hasher = Sha512::new();
-    hasher.update(username);
-    hasher.update(password);
-    let password = &format!("{:x}", hasher.finalize());
+    let password = &utils::sha512(&[&username, &password]);
 
     if let Err(err) = diesel::insert_into(users::table)
         .values(&NewUser { username, password })
