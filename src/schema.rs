@@ -17,6 +17,8 @@ table! {
     }
 }
 
+joinable!(login_sessions -> users (user_id));
+
 allow_tables_to_appear_in_same_query!(
     login_sessions,
     users,

@@ -1,6 +1,6 @@
 use super::schema::*;
 
-#[derive(Queryable, Clone, Debug)]
+#[derive(Queryable, Clone, Debug,Default)]
 pub struct User {
     pub id: i32,
     pub username: String,

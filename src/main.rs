@@ -13,9 +13,10 @@ mod response_code;
 mod schema;
 pub mod utils;
 
-use actix_web::{middleware, web, App, HttpServer};
+use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
+use handlers::file::ep_list_files;
 use handlers::user::{ep_login, ep_register};
 
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
@@ -25,17 +26,23 @@ pub type DbConnection = PooledConnection<ConnectionManager<PgConnection>>;
 async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("debug"));
 
-    let db = db::connect();
-
     let config = config::Config::new().await.expect("Couldn't load config");
+    let db = db::connect();
 
     HttpServer::new(move || {
         App::new()
-            .data(db.clone())
+            // Data
             .data(config.clone())
+            .data(db.clone())
+            .app_data(db.clone())
+            // Middlewares
+            .wrap(middleware::Logger::default())
+            // Services
             .service(web::resource("/user/register").to(ep_register))
             .service(web::resource("/user/login").to(ep_login))
-            .wrap(middleware::Logger::default())
+            .service(web::resource("/files").to(ep_list_files))
+            // Other
+            .default_service(web::route().to(|| HttpResponse::MethodNotAllowed()))
     })
     .bind("127.0.0.1:8080")?
     .run()
