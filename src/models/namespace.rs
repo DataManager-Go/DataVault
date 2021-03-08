@@ -84,4 +84,16 @@ impl Namespace {
 
         Ok(())
     }
+
+    /// Rename a namespace
+    pub fn rename(&self, db: &DbConnection, new_name: &str) -> Result<(), RestError> {
+        use crate::schema::namespaces::dsl::*;
+
+        diesel::update(namespaces)
+            .set(name.eq(new_name))
+            .filter(id.eq(self.id))
+            .execute(db)?;
+
+        Ok(())
+    }
 }
