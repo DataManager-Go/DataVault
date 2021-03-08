@@ -40,6 +40,9 @@ pub enum RestError {
     #[error("Bad request")]
     BadRequest,
 
+    #[error("Unauthorized")]
+    Unauthorized,
+
     // Unknown
     #[error("Unknown Internal Error")]
     Unknown,
@@ -53,6 +56,7 @@ impl RestError {
             Self::UnknownIO => "Unknown IO".to_string(),
             Self::Unknown => "Unknown".to_string(),
             Self::InternalError => "InternalError".to_string(),
+            Self::Unauthorized => "Unauthorized".to_string(),
             _ => "BadRequest".to_string(),
         }
     }
@@ -63,6 +67,7 @@ impl ResponseError for RestError {
     fn status_code(&self) -> StatusCode {
         match *self {
             Self::NotFound => StatusCode::NOT_FOUND,
+            Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::BadRequest | Self::UserExists => StatusCode::BAD_REQUEST,
             Self::Forbidden => StatusCode::FORBIDDEN,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
@@ -95,6 +100,12 @@ impl From<r2d2::Error> for RestError {
     }
 }
 
+impl From<diesel::result::Error> for RestError {
+    fn from(_: diesel::result::Error) -> RestError {
+        RestError::InternalError
+    }
+}
+
 impl From<std::io::Error> for RestError {
     fn from(e: std::io::Error) -> RestError {
         match e.kind() {
@@ -113,5 +124,12 @@ where
             BlockingError::Error(err) => err.into(),
             BlockingError::Canceled => Self::Unknown,
         }
+    }
+}
+
+pub fn login_error(err: diesel::result::Error) -> RestError {
+    match err {
+        diesel::result::Error::NotFound => RestError::NotFound,
+        _ => RestError::InternalError,
     }
 }

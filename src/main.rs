@@ -16,7 +16,7 @@ pub mod utils;
 use actix_web::{middleware, web, App, HttpServer};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
-use handlers::user::ep_register;
+use handlers::user::{ep_login, ep_register};
 
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 pub type DbConnection = PooledConnection<ConnectionManager<PgConnection>>;
@@ -34,6 +34,7 @@ async fn main() -> std::io::Result<()> {
             .data(db.clone())
             .data(config.clone())
             .service(web::resource("/user/register").to(ep_register))
+            .service(web::resource("/user/login").to(ep_login))
             .wrap(middleware::Logger::default())
     })
     .bind("127.0.0.1:8080")?
