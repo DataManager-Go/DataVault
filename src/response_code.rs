@@ -30,8 +30,8 @@ pub enum RestError {
     #[error("The performed action is forbidden")]
     Forbidden,
 
-    #[error("This user already exists")]
-    UserExists,
+    #[error("This already exists")]
+    AlreadyExists,
 
     #[error("Internal Error")]
     InternalError,
@@ -60,6 +60,7 @@ impl RestError {
             Self::Unknown => "Unknown".to_string(),
             Self::InternalError => "InternalError".to_string(),
             Self::Unauthorized => "Unauthorized".to_string(),
+            Self::AlreadyExists => "AlreadyExists".to_string(),
             _ => "BadRequest".to_string(),
         }
     }
@@ -71,8 +72,9 @@ impl ResponseError for RestError {
         match *self {
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
-            Self::BadRequest | Self::UserExists => StatusCode::BAD_REQUEST,
+            Self::BadRequest => StatusCode::BAD_REQUEST,
             Self::Forbidden => StatusCode::FORBIDDEN,
+            Self::AlreadyExists => StatusCode::UNPROCESSABLE_ENTITY,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

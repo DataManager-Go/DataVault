@@ -7,8 +7,8 @@ use futures::future::{err, ok, Ready};
 /// This allows passing as requirement for a request
 /// and results in a valid session being required
 pub struct Authenticateduser {
-    user: User,
-    token: String,
+    pub user: User,
+    pub token: String,
 }
 
 impl FromRequest for Authenticateduser {

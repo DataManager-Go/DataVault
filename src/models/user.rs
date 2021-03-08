@@ -25,6 +25,7 @@ pub struct NewUser {
 }
 
 impl User {
+    // Create a NewUser object
     pub fn new(username: String, password: String) -> NewUser {
         NewUser { username, password }
     }
@@ -48,6 +49,54 @@ impl User {
             .first::<User>(db)
             .map_err(response_code::login_error)?)
     }
+
+    /// Create a new user session
+    pub fn login(
+        db: &DbConnection,
+        username: &str,
+        password: &str,
+        mid: &Option<String>,
+    ) -> Result<String, RestError> {
+        use crate::{models::login_session::NewLoginSession, schema::login_sessions::dsl::*};
+
+        let user = Self::find_by_name(&db, username)?;
+
+        if user.disabled {
+            return Err(RestError::UserDisabled);
+        }
+
+        // Salt & validate password
+        if user.password != utils::hash_pw(username, password) {
+            return Err(RestError::Unauthorized);
+        }
+
+        // Clear old session(s)
+        if let Some(mid) = mid {
+            diesel::delete(
+                login_sessions.filter(
+                    user_id
+                        .eq(user.id)
+                        .and(machine_id.nullable().is_not_null())
+                        .and(machine_id.eq(mid)),
+                ),
+            )
+            .execute(db)?;
+        }
+
+        // Generate new token
+        let new_token = NewLoginSession {
+            token: utils::random_string(60),
+            machine_id: mid.clone(),
+            user_id: user.id,
+        };
+
+        // Insert new token
+        diesel::insert_into(login_sessions)
+            .values(&new_token)
+            .execute(db)?;
+
+        Ok(new_token.token)
+    }
 }
 
 impl NewUser {
@@ -64,59 +113,11 @@ impl NewUser {
 
         if let Err(err) = diesel::insert_into(users::table).values(&user).execute(db) {
             return Err(match err {
-                DatabaseError(DatabaseErrorKind::UniqueViolation, _) => RestError::UserExists,
+                DatabaseError(DatabaseErrorKind::UniqueViolation, _) => RestError::AlreadyExists,
                 _ => RestError::Unknown,
             });
         }
 
         Ok(user)
     }
-}
-
-/// Create a user session
-pub fn login(
-    db: &DbConnection,
-    username: &str,
-    password: &str,
-    mid: &Option<String>,
-) -> Result<String, RestError> {
-    use crate::{models::login_session::NewLoginSession, schema::login_sessions::dsl::*};
-
-    let user = User::find_by_name(&db, username)?;
-
-    if user.disabled {
-        return Err(RestError::UserDisabled);
-    }
-
-    // Salt & validate password
-    if user.password != utils::hash_pw(username, password) {
-        return Err(RestError::Unauthorized);
-    }
-
-    // Clear old session(s)
-    if let Some(mid) = mid {
-        diesel::delete(
-            login_sessions.filter(
-                user_id
-                    .eq(user.id)
-                    .and(machine_id.nullable().is_not_null())
-                    .and(machine_id.eq(mid)),
-            ),
-        )
-        .execute(db)?;
-    }
-
-    // Generate new token
-    let new_token = NewLoginSession {
-        token: utils::random_string(60),
-        machine_id: mid.clone(),
-        user_id: user.id,
-    };
-
-    // Insert new token
-    diesel::insert_into(login_sessions)
-        .values(&new_token)
-        .execute(db)?;
-
-    Ok(new_token.token)
 }

@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    models::user::{self, NewUser, User},
+    models::user::User,
     response_code::{RestError, Success, SUCCESS},
     DbPool,
 };
@@ -67,7 +67,7 @@ pub async fn ep_login(
     let db = pool.get()?;
 
     let token =
-        web::block(move || user::login(&db, &req.username, &req.password, &req.machine_id)).await?;
+        web::block(move || User::login(&db, &req.username, &req.password, &req.machine_id)).await?;
 
     Ok(Json(LoginResponse { token }))
 }
