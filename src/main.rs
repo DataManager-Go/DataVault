@@ -48,6 +48,9 @@ async fn main() -> std::io::Result<()> {
                 web::resource("/namespace/create").to(handlers::namespace::ep_create_namespace),
             )
             .service(web::resource("/namespaces").to(handlers::namespace::ep_list_namespace))
+            .service(
+                web::resource("/namespace/delete").to(handlers::namespace::ep_delete_namespace),
+            )
             // Other
             .default_service(web::route().to(HttpResponse::MethodNotAllowed))
     })

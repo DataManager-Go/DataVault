@@ -73,4 +73,15 @@ impl Namespace {
             .load::<Namespace>(db)
             .map_err(|i| i.into())
     }
+
+    /// Delete a namespace
+    pub fn delete(&self, db: &DbConnection) -> Result<(), RestError> {
+        use crate::schema::namespaces::dsl::*;
+
+        diesel::delete(namespaces)
+            .filter(id.eq(self.id))
+            .execute(db)?;
+
+        Ok(())
+    }
 }

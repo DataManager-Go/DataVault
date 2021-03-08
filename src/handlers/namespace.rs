@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     models::namespace::{self, Namespace},
-    response_code::RestError,
+    response_code::{RestError, Success, SUCCESS},
     DbPool,
 };
 
@@ -55,4 +55,27 @@ pub async fn ep_list_namespace(
         .collect::<Vec<String>>();
 
     Ok(Json(VecResponse { slice: ns_names }))
+}
+
+/// Endpoint for deleting a namespace
+pub async fn ep_delete_namespace(
+    pool: web::Data<DbPool>,
+    user: Authenticateduser,
+    req: web::Json<NamespaceRequest>,
+) -> Result<Json<Success>, RestError> {
+    let db = pool.get()?;
+
+    web::block(move || -> Result<(), RestError> {
+        let namespace = Namespace::find_by_name(&db, &req.name, user.user.id)
+            .map_err::<RestError, _>(|i| i.into())?;
+        if let Some(ns) = namespace {
+            ns.delete(&db).map_err::<RestError, _>(|i| i.into())?;
+            Ok(())
+        } else {
+            Err(RestError::NotFound)
+        }
+    })
+    .await?;
+
+    Ok(SUCCESS)
 }
