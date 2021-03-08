@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    models::user,
+    models::user::{self, NewUser, User},
     response_code::{RestError, Success, SUCCESS},
     DbPool,
 };
@@ -48,7 +48,9 @@ pub async fn ep_register(
 
     let db = pool.get()?;
 
-    web::block(move || user::register(&db, &req.username, &req.password)).await?;
+    let new_user = User::new(req.username.clone(), req.password.clone());
+
+    web::block(move || new_user.create(&db)).await?;
 
     Ok(SUCCESS)
 }
