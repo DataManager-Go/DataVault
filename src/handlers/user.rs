@@ -1,15 +1,11 @@
 use crate::{
     config::Config,
-    models::User,
-    response_code::{self, RestError, Success, SUCCESS},
-    utils, DbConnection, DbPool,
+    models::user,
+    response_code::{RestError, Success, SUCCESS},
+    DbPool,
 };
 
 use actix_web::web::{self, Json};
-use diesel::{
-    prelude::*,
-    result::{DatabaseErrorKind, Error::DatabaseError},
-};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
@@ -52,7 +48,7 @@ pub async fn ep_register(
 
     let db = pool.get()?;
 
-    web::block(move || register(&db, &req.username, &req.password)).await?;
+    web::block(move || user::register(&db, &req.username, &req.password)).await?;
 
     Ok(SUCCESS)
 }
@@ -68,86 +64,8 @@ pub async fn ep_login(
 
     let db = pool.get()?;
 
-    let token = web::block(move || login(&db, &req)).await?;
+    let token =
+        web::block(move || user::login(&db, &req.username, &req.password, &req.machine_id)).await?;
 
     Ok(Json(LoginResponse { token }))
-}
-
-/// Register a new user
-pub fn register(db: &DbConnection, username: &str, password: &str) -> Result<(), RestError> {
-    use crate::schema::users;
-
-    if let Err(err) = diesel::insert_into(users::table)
-        .values(&User::new(username, &utils::hash_pw(&username, &password)))
-        .execute(db)
-    {
-        return Err(match err {
-            DatabaseError(DatabaseErrorKind::UniqueViolation, _) => RestError::UserExists,
-            _ => RestError::Unknown,
-        });
-    }
-
-    Ok(())
-}
-
-/// Create a user session
-pub fn login(db: &DbConnection, req: &web::Json<CredentialsRequest>) -> Result<String, RestError> {
-    use crate::{
-        models::NewLoginSession,
-        schema::login_sessions::{self, dsl::*},
-    };
-
-    let user = find_user_by_name(&db, &req.username)?;
-
-    // Salt & validate password
-    if user.password != utils::hash_pw(&req.username, &req.password) {
-        return Err(RestError::Unauthorized);
-    }
-
-    // Clear old session(s)
-    if let Some(ref mid) = req.machine_id {
-        diesel::delete(
-            login_sessions.filter(
-                user_id
-                    .eq(user.id)
-                    .and(machine_id.nullable().is_not_null())
-                    .and(machine_id.eq(mid)),
-            ),
-        )
-        .execute(db)?;
-    }
-
-    // Generate new token
-    let new_token = NewLoginSession {
-        token: utils::random_string(60),
-        machine_id: req.machine_id.clone(),
-        user_id: user.id,
-    };
-
-    // Insert new token
-    diesel::insert_into(login_sessions::table)
-        .values(&new_token)
-        .execute(db)?;
-
-    return Ok(new_token.token);
-}
-
-// Find a user by its Name
-pub fn find_user_by_name(db: &DbConnection, name: &str) -> Result<User, RestError> {
-    use crate::schema::users::dsl::*;
-
-    Ok(users
-        .filter(username.eq(name))
-        .first::<User>(db)
-        .map_err(response_code::login_error)?)
-}
-
-// Find a user by its ID
-pub fn find_user_by_id(db: &DbConnection, user_id: i32) -> Result<User, RestError> {
-    use crate::schema::users::dsl::*;
-
-    Ok(users
-        .filter(id.eq(user_id))
-        .first::<User>(db)
-        .map_err(response_code::login_error)?)
 }

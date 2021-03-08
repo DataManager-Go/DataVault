@@ -1,5 +1,5 @@
-use super::session;
-use crate::{models::User, DbPool};
+use crate::models::login_session;
+use crate::{models::user::User, DbPool};
 use actix_web::{web::Data, Error, FromRequest, HttpRequest};
 use futures::future::{err, ok, Ready};
 
@@ -25,7 +25,7 @@ impl FromRequest for Authenticateduser {
             }
 
             // Find session by token
-            let user = match session::find_session(&db.unwrap(), &token) {
+            let user = match login_session::find_session(&db.unwrap(), &token) {
                 Ok(user) => match user {
                     Some(user) => user,
                     // Token was not found
@@ -37,10 +37,7 @@ impl FromRequest for Authenticateduser {
             };
 
             // Success
-            return ok(Authenticateduser {
-                user,
-                token: token.to_owned(),
-            });
+            return ok(Authenticateduser { user, token });
         }
 
         err(actix_web::error::ErrorUnauthorized("Not authorized"))
@@ -50,9 +47,9 @@ impl FromRequest for Authenticateduser {
 /// Get the bearer token from request headers
 pub fn get_bearer_token(req: &HttpRequest) -> Option<String> {
     req.headers().get("Authorization").and_then(|i| {
-        i.to_str().map(|i| String::from(i)).ok().and_then(|header| {
-            if header.trim().contains(" ") {
-                Some(header.split(" ").collect::<Vec<&str>>()[1].to_owned())
+        i.to_str().map(String::from).ok().and_then(|header| {
+            if header.trim().contains(' ') {
+                Some(header.split(' ').collect::<Vec<&str>>()[1].to_owned())
             } else {
                 None
             }

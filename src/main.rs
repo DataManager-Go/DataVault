@@ -1,3 +1,5 @@
+#![allow(clippy::new_ret_no_self)]
+
 #[macro_use]
 extern crate log;
 
@@ -8,7 +10,7 @@ extern crate dotenv;
 pub mod config;
 mod db;
 mod handlers;
-mod models;
+pub mod models;
 mod response_code;
 mod schema;
 pub mod utils;
@@ -43,7 +45,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/files").to(ep_list_files))
             .service(web::resource("/ping").to(handlers::ping::ep_ping))
             // Other
-            .default_service(web::route().to(|| HttpResponse::MethodNotAllowed()))
+            .default_service(web::route().to(HttpResponse::MethodNotAllowed))
     })
     .bind("127.0.0.1:8080")?
     .run()

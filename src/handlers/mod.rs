@@ -2,5 +2,4 @@
 pub mod authentication;
 pub mod file;
 pub mod ping;
-mod session;
 pub mod user;

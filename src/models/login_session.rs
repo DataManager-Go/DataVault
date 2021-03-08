@@ -1,5 +1,23 @@
-use crate::{models::User, schema::users, DbConnection};
+use crate::schema::*;
+use crate::{models::user::User, schema::users, DbConnection};
 use diesel::{prelude::*, result::Error};
+
+#[derive(Queryable)]
+pub struct LoginSession {
+    pub id: i32,
+    pub user_id: i32,
+    pub token: i32,
+    pub requests: i64,
+    pub machine_id: Option<String>,
+}
+
+#[derive(Insertable)]
+#[table_name = "login_sessions"]
+pub struct NewLoginSession {
+    pub user_id: i32,
+    pub token: String,
+    pub machine_id: Option<String>,
+}
 
 /// Check whether a session exists and retrieve the user
 pub fn find_session(db: &DbConnection, q_token: &str) -> Result<Option<User>, Error> {
