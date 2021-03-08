@@ -9,6 +9,14 @@ table! {
 }
 
 table! {
+    namespaces (id) {
+        id -> Int4,
+        name -> Text,
+        creator -> Int4,
+    }
+}
+
+table! {
     users (id) {
         id -> Int4,
         username -> Text,
@@ -18,8 +26,10 @@ table! {
 }
 
 joinable!(login_sessions -> users (user_id));
+joinable!(namespaces -> users (creator));
 
 allow_tables_to_appear_in_same_query!(
     login_sessions,
+    namespaces,
     users,
 );
