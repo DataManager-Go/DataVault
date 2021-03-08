@@ -18,7 +18,5 @@ pub async fn ep_list_files(
     config: web::Data<Config>,
     user: Authenticateduser,
 ) -> Result<Json<Success>, RestError> {
-    println!("list files");
-
     Ok(SUCCESS)
 }
