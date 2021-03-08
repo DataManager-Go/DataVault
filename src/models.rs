@@ -33,7 +33,13 @@ pub struct NewLoginSession {
 }
 
 impl User {
-    pub fn get_default_ns(&self) -> String {
-        format!("{}_default", self.username)
+    pub fn new<'a>(username: &'a str, password: &'a str) -> NewUser<'a> {
+        NewUser { username, password }
+    }
+}
+
+impl<'a> NewUser<'a> {
+    pub fn get_password_hashed(&self) -> String {
+        crate::utils::hash_pw(&self.username, &self.password)
     }
 }

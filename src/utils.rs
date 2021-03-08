@@ -17,3 +17,7 @@ pub fn random_string(len: usize) -> String {
         .map(char::from)
         .collect()
 }
+
+pub fn hash_pw(username: &str, pass: &str) -> String {
+    crate::utils::sha512(&[&username, &pass])
+}
