@@ -78,6 +78,8 @@ impl Namespace {
     pub fn delete(&self, db: &DbConnection) -> Result<(), RestError> {
         use crate::schema::namespaces::dsl::*;
 
+        // TODO delete namespaces files, tags and groups here as well
+
         diesel::delete(namespaces)
             .filter(id.eq(self.id))
             .execute(db)?;

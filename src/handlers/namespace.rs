@@ -1,7 +1,4 @@
-use super::{
-    authentication::Authenticateduser,
-    response::{StringResponse, VecResponse},
-};
+use super::{authentication::Authenticateduser, requests::NamespaceRequest, response::VecResponse};
 use crate::{
     models::namespace::{self, Namespace},
     response_code::{RestError, Success, SUCCESS},
@@ -9,15 +6,6 @@ use crate::{
 };
 
 use actix_web::web::{self, Json};
-use serde::Deserialize;
-
-#[derive(Deserialize)]
-pub struct NamespaceRequest {
-    #[serde(rename = "ns")]
-    name: String,
-    #[serde(rename = "newName")]
-    new_name: Option<String>,
-}
 
 /// Endpoint for registering new users
 pub async fn ep_create_namespace(

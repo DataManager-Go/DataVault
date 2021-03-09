@@ -49,6 +49,7 @@ async fn main() -> std::io::Result<()> {
             )
             .service(web::resource("/namespaces").to(handlers::namespace::ep_list_namespace))
             .service(web::resource("/namespace/update").to(handlers::namespace::ep_list_namespace))
+            .service(web::resource("/upload/file").to(handlers::file::ep_upload))
             .service(
                 web::resource("/namespace/delete").to(handlers::namespace::ep_delete_namespace),
             )

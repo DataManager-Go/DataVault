@@ -6,28 +6,8 @@ use crate::{
 };
 
 use actix_web::web::{self, Json};
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
-pub struct CredentialsRequest {
-    username: String,
-    #[serde(rename = "mid")]
-    machine_id: Option<String>,
-    #[serde(rename = "pass")]
-    password: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct LoginResponse {
-    token: String,
-}
-
-impl CredentialsRequest {
-    // Returns true if one value is empty
-    pub fn has_empty(&self) -> bool {
-        self.username.is_empty() || self.password.is_empty()
-    }
-}
+use super::{requests::CredentialsRequest, response::LoginResponse};
 
 /// Endpoint for registering new users
 pub async fn ep_register(

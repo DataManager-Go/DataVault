@@ -12,3 +12,8 @@ where
 {
     pub slice: Vec<T>,
 }
+
+#[derive(Debug, Serialize)]
+pub struct LoginResponse {
+    pub token: String,
+}
