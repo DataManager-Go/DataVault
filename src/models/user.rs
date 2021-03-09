@@ -9,7 +9,7 @@ use diesel::{
     result::{DatabaseErrorKind, Error::DatabaseError},
 };
 
-#[derive(Queryable, Clone, Debug, Default)]
+#[derive(Identifiable, Queryable, Associations, Clone, Debug, Default)]
 pub struct User {
     pub id: i32,
     pub username: String,

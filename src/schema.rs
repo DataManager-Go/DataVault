@@ -2,7 +2,7 @@ table! {
     files (id) {
         id -> Int4,
         name -> Text,
-        uploader -> Int4,
+        user_id -> Int4,
         local_name -> Text,
         uploaded_at -> Nullable<Timestamptz>,
         file_size -> Int8,
@@ -29,7 +29,7 @@ table! {
     namespaces (id) {
         id -> Int4,
         name -> Text,
-        creator -> Int4,
+        user_id -> Int4,
     }
 }
 
@@ -42,9 +42,9 @@ table! {
     }
 }
 
-joinable!(files -> users (uploader));
+joinable!(files -> users (user_id));
 joinable!(login_sessions -> users (user_id));
-joinable!(namespaces -> users (creator));
+joinable!(namespaces -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
     files,

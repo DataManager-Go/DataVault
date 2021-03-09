@@ -34,7 +34,7 @@ pub async fn ep_list_namespace(
 ) -> Result<Json<VecResponse<String>>, RestError> {
     let db = pool.get()?;
 
-    let ns_names = web::block(move || Namespace::list(&db, user.user.id))
+    let ns_names = web::block(move || Namespace::list(&db, user.user))
         .await?
         .into_iter()
         .map(|i| i.name)

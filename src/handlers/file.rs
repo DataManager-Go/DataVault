@@ -4,6 +4,8 @@ use crate::{
     response_code::{RestError, Success, SUCCESS},
     DbPool,
 };
+use actix_multipart::Multipart;
+use futures::{StreamExt, TryStreamExt};
 
 use actix_web::web::{self, Json};
 
@@ -22,9 +24,14 @@ pub async fn ep_upload(
     _config: web::Data<Config>,
     user: Authenticateduser,
     upload_request: UploadRequest,
+    mut payload: Multipart,
 ) -> Result<Json<Success>, RestError> {
     upload_request.validate(&user)?;
-    println!("Req: {:#?}", upload_request);
+
+    // Replace by ID
+    // Replace by name
+
+    // Create new
 
     Ok(SUCCESS)
 }
