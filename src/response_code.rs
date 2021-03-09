@@ -19,24 +19,15 @@ pub const SUCCESS: Json<Success> = Json(Success { message: "Success" });
 /// Possible rest error types
 #[derive(Error, Debug)]
 pub enum RestError {
-    // IO
-    #[error("Requested resource was not found")]
+    #[error("Not found")]
     NotFound,
 
-    #[error("Internal IO Error")]
-    UnknownIO,
-
-    // Other
     #[error("The performed action is forbidden")]
     Forbidden,
 
-    #[error("This already exists")]
+    #[error("Already exitsting")]
     AlreadyExists,
 
-    #[error("Internal Error")]
-    InternalError,
-
-    // HTTP
     #[error("Bad request")]
     BadRequest,
 
@@ -46,9 +37,15 @@ pub enum RestError {
     #[error("User disabled")]
     UserDisabled,
 
-    // Unknown
+    #[error("Illegal operation")]
+    IllegalOperation,
+
+    // Internal
     #[error("Unknown Internal Error")]
-    Unknown,
+    Internal,
+
+    #[error("Internal IO Error")]
+    UnknownIO,
 }
 
 impl RestError {
@@ -57,10 +54,10 @@ impl RestError {
             Self::NotFound => "NotFound".to_string(),
             Self::Forbidden => "Forbidden".to_string(),
             Self::UnknownIO => "Unknown IO".to_string(),
-            Self::Unknown => "Unknown".to_string(),
-            Self::InternalError => "InternalError".to_string(),
+            Self::Internal => "Unknown".to_string(),
             Self::Unauthorized => "Unauthorized".to_string(),
             Self::AlreadyExists => "AlreadyExists".to_string(),
+            Self::IllegalOperation => "IllegalOperation".to_string(),
             _ => "BadRequest".to_string(),
         }
     }
@@ -75,6 +72,7 @@ impl ResponseError for RestError {
             Self::BadRequest => StatusCode::BAD_REQUEST,
             Self::Forbidden => StatusCode::FORBIDDEN,
             Self::AlreadyExists => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::IllegalOperation => StatusCode::UNPROCESSABLE_ENTITY,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -101,13 +99,13 @@ struct ErrorResponse {
 
 impl From<r2d2::Error> for RestError {
     fn from(_: r2d2::Error) -> RestError {
-        RestError::InternalError
+        RestError::Internal
     }
 }
 
 impl From<diesel::result::Error> for RestError {
     fn from(_: diesel::result::Error) -> RestError {
-        RestError::InternalError
+        RestError::Internal
     }
 }
 
@@ -127,7 +125,7 @@ where
     fn from(err: BlockingError<T>) -> Self {
         match err {
             BlockingError::Error(err) => err.into(),
-            BlockingError::Canceled => Self::Unknown,
+            BlockingError::Canceled => Self::Internal,
         }
     }
 }
@@ -135,6 +133,6 @@ where
 pub fn login_error(err: diesel::result::Error) -> RestError {
     match err {
         diesel::result::Error::NotFound => RestError::NotFound,
-        _ => RestError::InternalError,
+        _ => RestError::Internal,
     }
 }

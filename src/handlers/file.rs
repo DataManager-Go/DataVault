@@ -18,11 +18,13 @@ pub async fn ep_list_files(
 
 /// Endpoint for uploading new files
 pub async fn ep_upload(
-    pool: web::Data<DbPool>,
-    config: web::Data<Config>,
+    _pool: web::Data<DbPool>,
+    _config: web::Data<Config>,
     user: Authenticateduser,
     upload_request: UploadRequest,
 ) -> Result<Json<Success>, RestError> {
+    upload_request.validate(&user)?;
     println!("Req: {:#?}", upload_request);
+
     Ok(SUCCESS)
 }

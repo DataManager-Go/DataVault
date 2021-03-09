@@ -6,11 +6,14 @@ use actix_web::{
 use futures::future::Ready;
 use serde::Deserialize;
 
+use crate::{handlers::authentication::Authenticateduser, response_code::RestError};
+
 #[derive(Debug, Deserialize)]
 pub struct UploadRequest {
     // Required fields
     #[serde(rename = "type")]
-    pub upload_type: u8,
+    #[serde(with = "upload_type_dser")]
+    pub upload_type: UploadType,
     #[serde(rename = "name")]
     pub name: String,
 
@@ -46,6 +49,29 @@ pub struct FileAttributes {
     pub namespace: String,
 }
 
+#[derive(PartialEq, Debug)]
+pub enum UploadType {
+    File,
+    Url,
+}
+
+impl UploadType {
+    pub fn encode(&self) -> u8 {
+        match self {
+            UploadType::File => 0,
+            UploadType::Url => 1,
+        }
+    }
+
+    pub fn decode(i: u8) -> Option<Self> {
+        match i {
+            0 => Some(Self::File),
+            1 => Some(Self::Url),
+            _ => None,
+        }
+    }
+}
+
 impl FromRequest for UploadRequest {
     type Error = actix_web::Error;
     type Future = Ready<Result<Self, Error>>;
@@ -73,5 +99,44 @@ impl FromRequest for UploadRequest {
         };
 
         futures::future::ready(res())
+    }
+}
+
+impl UploadRequest {
+    pub fn validate(&self, _user: &Authenticateduser) -> Result<(), RestError> {
+        // TODO check for encryption
+
+        if self.replace_equal_names && self.replace_file_by_id.unwrap_or_default() > 0 {
+            return Err(RestError::IllegalOperation);
+        }
+
+        // TODO implement user permissions
+        match self.upload_type {
+            UploadType::File => {}
+            UploadType::Url => {}
+        }
+
+        Ok(())
+    }
+}
+
+// Serialize/Deserialize TouchpadOption
+mod upload_type_dser {
+    use serde::{self, Deserialize, Deserializer, Serializer};
+
+    use super::UploadType;
+
+    pub fn serialize<S>(upload_type: &UploadType, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        s.serialize_u8(upload_type.encode())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<UploadType, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(UploadType::decode(u8::deserialize(deserializer)?).unwrap_or(UploadType::File))
     }
 }

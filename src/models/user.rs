@@ -114,7 +114,7 @@ impl NewUser {
         if let Err(err) = diesel::insert_into(users::table).values(&user).execute(db) {
             return Err(match err {
                 DatabaseError(DatabaseErrorKind::UniqueViolation, _) => RestError::AlreadyExists,
-                _ => RestError::Unknown,
+                _ => RestError::Internal,
             });
         }
 
