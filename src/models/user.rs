@@ -9,6 +9,8 @@ use diesel::{
     result::{DatabaseErrorKind, Error::DatabaseError},
 };
 
+use super::namespace::Namespace;
+
 #[derive(Identifiable, Queryable, Associations, Clone, Debug, Default)]
 pub struct User {
     pub id: i32,
@@ -96,6 +98,18 @@ impl User {
             .execute(db)?;
 
         Ok(new_token.token)
+    }
+
+    /// Gets the full namespace for the user
+    pub fn get_default_namespace(
+        &self,
+        db: &DbConnection,
+    ) -> Result<Namespace, diesel::result::Error> {
+        use crate::schema::namespaces::dsl::*;
+
+        namespaces
+            .filter(user_id.eq(self.id).and(name.eq("default")))
+            .first(db)
     }
 }
 

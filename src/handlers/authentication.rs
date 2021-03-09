@@ -1,12 +1,13 @@
-use crate::models::login_session;
+use crate::models::{login_session, namespace::Namespace};
 use crate::{models::user::User, DbPool};
-use actix_web::{web::Data, Error, FromRequest, HttpRequest};
+use actix_web::{error::ErrorInternalServerError, web::Data, Error, FromRequest, HttpRequest};
 use futures::future::{err, ok, Ready};
 
 /// Defines a struct which implements FromRequest.
 /// This allows passing as requirement for a request
 /// and results in a valid session being required
 pub struct Authenticateduser {
+    pub default_namespace: Namespace,
     pub user: User,
     pub token: String,
 }
@@ -21,11 +22,12 @@ impl FromRequest for Authenticateduser {
         if let Some(token) = get_bearer_token(req) {
             let db = req.app_data::<Data<DbPool>>().and_then(|i| i.get().ok());
             if db.is_none() {
-                return err(actix_web::error::ErrorInternalServerError("Error"));
+                return err(ErrorInternalServerError("Error"));
             }
+            let db = db.unwrap();
 
             // Find session by token
-            let user = match login_session::find_session(&db.unwrap(), &token) {
+            let user = match login_session::find_session(&db, &token) {
                 Ok(user) => match user {
                     Some(user) => user,
                     // Token was not found
@@ -33,7 +35,7 @@ impl FromRequest for Authenticateduser {
                 },
 
                 // An unexpected error occured
-                Err(_) => return err(actix_web::error::ErrorInternalServerError("Error")),
+                Err(_) => return err(ErrorInternalServerError("Error")),
             };
 
             // Disable disabled user // **pun not intended!!!
@@ -41,8 +43,17 @@ impl FromRequest for Authenticateduser {
                 return err(actix_web::error::ErrorUnauthorized("User disabled"));
             }
 
+            let default_namespace = match user.get_default_namespace(&db) {
+                Ok(ns) => ns,
+                Err(_) => return err(ErrorInternalServerError("Default namespace not found")),
+            };
+
             // Success
-            return ok(Authenticateduser { user, token });
+            return ok(Authenticateduser {
+                user,
+                token,
+                default_namespace,
+            });
         }
 
         err(actix_web::error::ErrorUnauthorized("Not authorized"))

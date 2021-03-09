@@ -28,6 +28,7 @@ pub async fn ep_upload(
 ) -> Result<Json<Success>, RestError> {
     upload_request.validate(&user)?;
 
+    println!("ns:{:?}", user.default_namespace);
     // Replace by ID
     // Replace by name
 

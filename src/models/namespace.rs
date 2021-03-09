@@ -76,6 +76,11 @@ impl Namespace {
     pub fn delete(&self, db: &DbConnection) -> Result<(), RestError> {
         use crate::schema::namespaces::dsl::*;
 
+        // Don't allow deleting 'default' namespace
+        if self.name == "default" {
+            return Err(RestError::IllegalOperation);
+        }
+
         // TODO delete namespaces files, tags and groups here as well
 
         diesel::delete(namespaces)
