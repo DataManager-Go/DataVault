@@ -40,9 +40,11 @@ pub struct NewFile {
 }
 
 impl NewFile {
-    pub fn create(&self, db: &DbConnection) -> Result<(), diesel::result::Error> {
+    pub fn create(&self, db: &DbConnection) -> Result<i32, diesel::result::Error> {
         use crate::schema::files::dsl::*;
-        diesel::insert_into(files).values(self).execute(db)?;
-        Ok(())
+        diesel::insert_into(files)
+            .values(self)
+            .returning(id)
+            .get_result(db)
     }
 }

@@ -82,7 +82,7 @@ impl FromRequest for UploadRequest {
             let data_header = req
                 .headers()
                 .get("Request")
-                .ok_or(ErrorBadRequest("Missing header"))?
+                .ok_or_else(|| ErrorBadRequest("Missing header"))?
                 .to_str()
                 .map(String::from)
                 .map_err(|_| ErrorBadRequest("Malformed header"))?;

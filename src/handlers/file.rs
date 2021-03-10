@@ -1,4 +1,7 @@
-use super::{authentication::Authenticateduser, requests::upload_request::UploadRequest};
+use super::{
+    authentication::Authenticateduser, requests::upload_request::UploadRequest,
+    response::UploadResponse,
+};
 use crate::{
     config::Config,
     models::file::{self, NewFile},
@@ -29,8 +32,9 @@ pub async fn ep_upload(
     user: Authenticateduser,
     upload_request: UploadRequest,
     payload: Multipart,
-) -> Result<Json<Success>, RestError> {
+) -> Result<Json<UploadResponse>, RestError> {
     upload_request.validate(&user)?;
+    debug!("{:#?}", upload_request);
 
     let db = pool.get()?;
 
@@ -38,7 +42,7 @@ pub async fn ep_upload(
     let target_namespace = retrieve_namespace(&upload_request, &user, &db)?;
 
     let mut file = NewFile {
-        name: upload_request.name,
+        name: upload_request.name.clone(),
         user_id: user.user.id,
         //encryption: upload_request.encryption.unwrap_or_default(),
         namespace_id: target_namespace.id,
@@ -51,19 +55,26 @@ pub async fn ep_upload(
     let (crc, size, mime_type) =
         multipart_to_file(payload, config.deref(), &file.local_name).await?;
 
-    file.checksum = crc;
+    file.checksum = crc.clone();
     file.file_size = size;
     file.file_type = mime_type;
 
-    println!("{:#?}", file);
+    debug!("{:#?}", file);
 
     // Replace by ID
     // Replace by name
 
     // Create new
-    file.create(&db)?;
+    let id = file.create(&db)?;
 
-    Ok(SUCCESS)
+    Ok(Json(UploadResponse {
+        file_size: size,
+        checksum: crc,
+        namespace: target_namespace.name,
+        file_id: id,
+        file_name: upload_request.name,
+        public_file_name: None,
+    }))
 }
 
 /// Write a multipart to a given file. Returns
@@ -77,7 +88,7 @@ pub async fn multipart_to_file(
     let mut part = part
         .next()
         .await
-        .ok_or_else(|| RestError::BadRequest)?
+        .ok_or(RestError::BadRequest)?
         .map_err(|_| RestError::BadRequest)?;
 
     // Create new crc32 hasher to calculate the checksum
@@ -125,17 +136,16 @@ fn retrieve_namespace(
         .attributes
         .as_ref()
         .map(|i| i.namespace.clone())
-        .unwrap_or("default".to_string());
+        .unwrap_or_else(|| "default".to_string());
 
     Ok({
         if ns_name == "default" {
             user.default_ns
                 .as_ref()
-                .map(|i| i.clone())
+                .cloned()
                 .unwrap_or(user.user.get_default_namespace(&db)?)
         } else {
-            Namespace::find_by_name(&db, &ns_name, user.user.id)?
-                .ok_or_else(|| RestError::NotFound)?
+            Namespace::find_by_name(&db, &ns_name, user.user.id)?.ok_or(RestError::NotFound)?
         }
     })
 }

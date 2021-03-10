@@ -18,9 +18,7 @@ pub async fn ep_create_namespace(
     }
 
     web::block(move || -> Result<(), RestError> {
-        namespace::CreateNamespace::new(&req.name, user.user.id)
-            .create(&pool.get()?)
-            .map_err(|err| err.into())
+        namespace::CreateNamespace::new(&req.name, user.user.id).create(&pool.get()?)
     })
     .await?;
 
@@ -52,10 +50,8 @@ pub async fn ep_delete_namespace(
     let db = pool.get()?;
 
     web::block(move || -> Result<(), RestError> {
-        let namespace = Namespace::find_by_name(&db, &req.name, user.user.id)
-            .map_err::<RestError, _>(|i| i.into())?;
-        if let Some(ns) = namespace {
-            ns.delete(&db).map_err::<RestError, _>(|i| i.into())?;
+        if let Some(ns) = Namespace::find_by_name(&db, &req.name, user.user.id)? {
+            ns.delete(&db)?;
             Ok(())
         } else {
             Err(RestError::NotFound)
@@ -79,12 +75,8 @@ pub async fn ep_rename_namespace(
     let db = pool.get()?;
 
     web::block(move || -> Result<(), RestError> {
-        let namespace = Namespace::find_by_name(&db, &req.name, user.user.id)
-            .map_err::<RestError, _>(|i| i.into())?;
-
-        if let Some(ns) = namespace {
-            ns.rename(&db, req.new_name.as_ref().unwrap())
-                .map_err::<RestError, _>(|i| i.into())?;
+        if let Some(ns) = Namespace::find_by_name(&db, &req.name, user.user.id)? {
+            ns.rename(&db, req.new_name.as_ref().unwrap())?;
             Ok(())
         } else {
             Err(RestError::NotFound)
