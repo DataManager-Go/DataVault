@@ -123,7 +123,7 @@ impl From<std::io::Error> for RestError {
 
 impl<T> From<BlockingError<T>> for RestError
 where
-    T: Into<RestError> + Debug,
+    T: std::fmt::Debug + Into<RestError>,
 {
     fn from(err: BlockingError<T>) -> Self {
         debug!("{:?}", err);

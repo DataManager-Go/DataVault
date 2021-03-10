@@ -12,7 +12,7 @@ use crate::{
 use actix_multipart::Multipart;
 
 use actix_web::web::{self, Json};
-use async_std::{fs, io::prelude::*, path::Path};
+use async_std::{fs, io::prelude::*, io::BufWriter, path::Path};
 use futures::StreamExt;
 use lazy_static::__Deref;
 
@@ -34,7 +34,6 @@ pub async fn ep_upload(
     payload: Multipart,
 ) -> Result<Json<UploadResponse>, RestError> {
     upload_request.validate(&user)?;
-    debug!("{:#?}", upload_request);
 
     let db = pool.get()?;
 
@@ -95,9 +94,11 @@ pub async fn multipart_to_file(
     let mut hasher = crc32fast::Hasher::new();
 
     // Create a new local file
-    let mut file = fs::File::create(Path::new(&config.server.file_output_path).join(filename))
+    let file = fs::File::create(Path::new(&config.server.file_output_path).join(filename))
         .await
         .map_err::<RestError, _>(|i| i.into())?;
+
+    let mut file = BufWriter::new(file);
 
     let mut size: i64 = 0;
     let mut mime_type: Option<String> = None;
@@ -119,6 +120,8 @@ pub async fn multipart_to_file(
 
         size += data.len() as i64;
     }
+
+    file.flush().await?;
 
     let crc = format!("{:x}", hasher.finalize());
 
