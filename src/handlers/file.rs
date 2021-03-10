@@ -2,14 +2,14 @@ use super::{authentication::Authenticateduser, requests::upload_request::UploadR
 use crate::{
     config::Config,
     models::file::{self, NewFile},
+    models::namespace::Namespace,
     response_code::{RestError, Success, SUCCESS},
-    utils, DbPool,
+    utils, DbConnection, DbPool,
 };
 use actix_multipart::Multipart;
-//use futures::{StreamExt, TryStreamExt};
 
 use actix_web::web::{self, Json};
-use async_std::{fs, io::prelude::WriteExt, path::Path};
+use async_std::{fs, io::prelude::*, path::Path};
 use futures::StreamExt;
 use lazy_static::__Deref;
 
@@ -24,7 +24,7 @@ pub async fn ep_list_files(
 
 /// Endpoint for uploading new files
 pub async fn ep_upload(
-    _pool: web::Data<DbPool>,
+    pool: web::Data<DbPool>,
     config: web::Data<Config>,
     user: Authenticateduser,
     upload_request: UploadRequest,
@@ -32,11 +32,16 @@ pub async fn ep_upload(
 ) -> Result<Json<Success>, RestError> {
     upload_request.validate(&user)?;
 
+    let db = pool.get()?;
+
+    // Find namespace
+    let target_namespace = retrieve_namespace(&upload_request, &user, &db)?;
+
     let mut file = NewFile {
         name: upload_request.name,
         user_id: user.user.id,
         //encryption: upload_request.encryption.unwrap_or_default(),
-        namespace_id: user.default_ns.unwrap().id,
+        namespace_id: target_namespace.id,
         is_public: upload_request.public.unwrap_or(false),
         public_filename: upload_request.public_name.unwrap_or_default(),
         local_name: utils::random_string(30),
@@ -95,7 +100,7 @@ pub async fn multipart_to_file(
         }
 
         // Write to file
-        file = file.write_all(&data).await.map(|_| file)?;
+        file.write_all(&data).await?;
 
         // Update crc32 hash
         hasher.update(&data);
@@ -106,4 +111,30 @@ pub async fn multipart_to_file(
     let crc = format!("{:x}", hasher.finalize());
 
     Ok((crc, size, mime_type.unwrap_or_default()))
+}
+
+/// Try to get the desired namespace. Use the precached
+/// namespace if possible and desired
+fn retrieve_namespace(
+    upload_request: &UploadRequest,
+    user: &Authenticateduser,
+    db: &DbConnection,
+) -> Result<Namespace, RestError> {
+    let ns_name = upload_request
+        .attributes
+        .as_ref()
+        .and_then(|attr| Some(attr.namespace.clone().to_lowercase()))
+        .unwrap_or("default".to_string());
+
+    Ok({
+        if ns_name == "default" {
+            user.default_ns
+                .as_ref()
+                .map(|i| i.clone())
+                .unwrap_or(user.user.get_default_namespace(&db)?)
+        } else {
+            Namespace::find_by_name(&db, &ns_name, user.user.id)?
+                .ok_or_else(|| RestError::NotFound)?
+        }
+    })
 }
