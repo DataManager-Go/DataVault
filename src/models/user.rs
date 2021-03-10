@@ -9,7 +9,7 @@ use diesel::{
     result::{DatabaseErrorKind, Error::DatabaseError},
 };
 
-use super::namespace::Namespace;
+use super::namespace::{CreateNamespace, Namespace};
 
 #[derive(Identifiable, Queryable, Associations, Clone, Debug, Default)]
 pub struct User {
@@ -125,12 +125,21 @@ impl NewUser {
             username: self.username,
         };
 
-        if let Err(err) = diesel::insert_into(users::table).values(&user).execute(db) {
+        let res = diesel::insert_into(users::table)
+            .values(&user)
+            .returning(users::id)
+            .get_result(db);
+
+        if let Err(err) = res {
             return Err(match err {
                 DatabaseError(DatabaseErrorKind::UniqueViolation, _) => RestError::AlreadyExists,
                 _ => RestError::Internal,
             });
         }
+        let res = res.unwrap();
+
+        // Create users new 'default' namespace
+        CreateNamespace::new("default", res).create(&db)?;
 
         Ok(user)
     }

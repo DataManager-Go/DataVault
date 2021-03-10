@@ -98,19 +98,22 @@ struct ErrorResponse {
 }
 
 impl From<r2d2::Error> for RestError {
-    fn from(_: r2d2::Error) -> RestError {
+    fn from(e: r2d2::Error) -> RestError {
+        debug!("{:?}", e);
         RestError::Internal
     }
 }
 
 impl From<diesel::result::Error> for RestError {
-    fn from(_: diesel::result::Error) -> RestError {
+    fn from(e: diesel::result::Error) -> RestError {
+        debug!("{:?}", e);
         RestError::Internal
     }
 }
 
 impl From<std::io::Error> for RestError {
     fn from(e: std::io::Error) -> RestError {
+        debug!("{:?}", e);
         match e.kind() {
             std::io::ErrorKind::NotFound => RestError::NotFound,
             _ => RestError::UnknownIO,
@@ -123,6 +126,7 @@ where
     T: Into<RestError> + Debug,
 {
     fn from(err: BlockingError<T>) -> Self {
+        debug!("{:?}", err);
         match err {
             BlockingError::Error(err) => err.into(),
             BlockingError::Canceled => Self::Internal,

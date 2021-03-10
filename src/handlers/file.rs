@@ -61,6 +61,7 @@ pub async fn ep_upload(
     // Replace by name
 
     // Create new
+    file.create(&db)?;
 
     Ok(SUCCESS)
 }
@@ -123,7 +124,7 @@ fn retrieve_namespace(
     let ns_name = upload_request
         .attributes
         .as_ref()
-        .and_then(|attr| Some(attr.namespace.clone().to_lowercase()))
+        .map(|i| i.namespace.clone())
         .unwrap_or("default".to_string());
 
     Ok({

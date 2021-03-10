@@ -11,7 +11,6 @@ CREATE TABLE public.files (
     namespace_id integer NOT NULL,
     encryption integer NOT NULL DEFAULT 0,
     checksum text NOT NULL,
-    foreign key (uploader) references users(id),
-    UNIQUE (public_filename)
+    foreign key (uploader) references users(id)
 );
 
