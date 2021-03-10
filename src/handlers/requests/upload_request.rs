@@ -24,13 +24,13 @@ pub struct UploadRequest {
     #[serde(rename = "pbname")]
     pub public_name: Option<String>,
     #[serde(rename = "e")]
-    pub encryption: Option<String>,
+    pub encryption: Option<i8>,
     #[serde(rename = "compr")]
     pub compressed: Option<bool>,
     #[serde(rename = "arved")]
     pub archived: Option<bool>,
     #[serde(rename = "r")]
-    pub replace_file_by_id: Option<u32>,
+    pub replace_file_by_id: Option<i32>,
     #[serde(rename = "ren")]
     pub replace_equal_names: bool,
     #[serde(rename = "a")]
@@ -87,6 +87,13 @@ impl FromRequest for UploadRequest {
                 .map(String::from)
                 .map_err(|_| ErrorBadRequest("Malformed header"))?;
 
+            println!(
+                "{}",
+                base64::decode(data_header.clone())
+                    .map(String::from_utf8)
+                    .map_err(|_| ErrorBadGateway("Bad header"))?
+                    .unwrap()
+            );
             let up_req = serde_json::from_slice::<UploadRequest>(
                 &base64::decode(data_header).map_err(|_| ErrorBadGateway("Bad header"))?,
             )
@@ -102,16 +109,22 @@ impl FromRequest for UploadRequest {
     }
 }
 
+fn is_encryption_valid(encr: i8) -> Option<bool> {
+    match encr {
+        0 => None,
+        1 | 2 => Some(true),
+        _ => Some(false),
+    }
+}
+
 impl UploadRequest {
     pub fn validate(&self, _user: &Authenticateduser) -> Result<(), RestError> {
-        // TODO check for encryption
-
-        if self.replace_equal_names && self.replace_file_by_id.unwrap_or_default() > 0 {
+        if !is_encryption_valid(self.encryption.unwrap_or(0)).unwrap_or(true) {
             return Err(RestError::IllegalOperation);
         }
 
-        if self.name.is_empty() {
-            return Err(RestError::BadRequest);
+        if self.replace_equal_names && self.replace_file_by_id.unwrap_or_default() > 0 {
+            return Err(RestError::IllegalOperation);
         }
 
         // TODO implement user permissions

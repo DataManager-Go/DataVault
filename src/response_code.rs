@@ -17,7 +17,7 @@ pub struct Success {
 pub const SUCCESS: Json<Success> = Json(Success { message: "Success" });
 
 /// Possible rest error types
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Clone, Copy)]
 pub enum RestError {
     #[error("Not found")]
     NotFound,
@@ -36,6 +36,9 @@ pub enum RestError {
 
     #[error("User disabled")]
     UserDisabled,
+
+    #[error("Multiple files matching")]
+    MultipleFilesMatch,
 
     #[error("Illegal operation")]
     IllegalOperation,
@@ -58,6 +61,7 @@ impl RestError {
             Self::Unauthorized => "Unauthorized".to_string(),
             Self::AlreadyExists => "AlreadyExists".to_string(),
             Self::IllegalOperation => "IllegalOperation".to_string(),
+            Self::MultipleFilesMatch => "MultipleFilesMatch".to_string(),
             _ => "BadRequest".to_string(),
         }
     }
@@ -73,6 +77,7 @@ impl ResponseError for RestError {
             Self::Forbidden => StatusCode::FORBIDDEN,
             Self::AlreadyExists => StatusCode::UNPROCESSABLE_ENTITY,
             Self::IllegalOperation => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::MultipleFilesMatch => StatusCode::UNPROCESSABLE_ENTITY,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -108,6 +113,15 @@ impl From<diesel::result::Error> for RestError {
     fn from(e: diesel::result::Error) -> RestError {
         debug!("{:?}", e);
         RestError::Internal
+    }
+}
+
+/// NotFound errors are mapped to 'NotFound' error responses.
+/// This is helpful when diesel::result::NotFound is an allowed result
+pub fn diesel_option(i: diesel::result::Error) -> RestError {
+    match i {
+        diesel::result::Error::NotFound => RestError::NotFound,
+        _ => i.into(),
     }
 }
 
