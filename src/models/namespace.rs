@@ -66,8 +66,8 @@ impl Namespace {
     }
 
     /// List all namespaces of a user
-    pub fn list(db: &DbConnection, user: User) -> Result<Vec<Namespace>, RestError> {
-        Namespace::belonging_to(&user)
+    pub fn list(db: &DbConnection, user: &User) -> Result<Vec<Namespace>, RestError> {
+        Namespace::belonging_to(user)
             .load::<Namespace>(db)
             .map_err(|i| i.into())
     }

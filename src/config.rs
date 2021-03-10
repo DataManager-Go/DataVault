@@ -16,6 +16,7 @@ pub struct Config {
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct ServerConfig {
     pub allow_registration: bool,
+    pub file_output_path: String,
 }
 
 impl Config {

@@ -110,6 +110,10 @@ impl UploadRequest {
             return Err(RestError::IllegalOperation);
         }
 
+        if self.name.is_empty() {
+            return Err(RestError::BadRequest);
+        }
+
         // TODO implement user permissions
         match self.upload_type {
             UploadType::File => {}

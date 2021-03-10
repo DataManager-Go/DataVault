@@ -24,14 +24,12 @@ pub struct File {
     pub checksum: String,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, Default, Debug)]
 #[table_name = "files"]
 pub struct NewFile {
-    pub id: i32,
     pub user_id: i32,
     pub name: String,
     pub local_name: String,
-    pub uploaded_at: NaiveDateTime,
     pub file_size: i64,
     pub file_type: String,
     pub is_public: bool,
