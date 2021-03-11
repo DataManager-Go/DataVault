@@ -86,11 +86,7 @@ impl File {
 
     /// Get the count of files which can
     // be found by the passed name and ns
-    pub fn find_by_name_count(
-        db: &DbConnection,
-        f_name: String,
-        ns: i32,
-    ) -> Result<i64, RestError> {
+    pub fn find_by_name_count(db: &DbConnection, f_name: &str, ns: i32) -> Result<i64, RestError> {
         use crate::schema::files::dsl::*;
 
         files
@@ -101,7 +97,7 @@ impl File {
     }
 
     /// Find a file by its name and namespace
-    pub fn find_by_name(db: &DbConnection, f_name: String, ns: i32) -> Result<File, RestError> {
+    pub fn find_by_name(db: &DbConnection, f_name: &str, ns: i32) -> Result<File, RestError> {
         use crate::schema::files::dsl::*;
         files
             .filter(name.eq(f_name).and(namespace_id.eq(ns)))
