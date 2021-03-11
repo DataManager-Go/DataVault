@@ -29,20 +29,50 @@ pub async fn ep_upload(
 
     let db = pool.get()?;
 
-    // Find namespace
+    let (namespace, mut file, create_new_file) = select_file(&upload_request, pool, user).await?;
+
+    // TODO set groups and tags
+
+    let (crc, size, mime_type) =
+        multipart_to_file(payload, config.deref(), &file.local_name).await?;
+
+    file.checksum = crc.clone();
+    file.file_size = size;
+    file.file_type = mime_type;
+
+    debug!("{:#?}", file);
+
+    let id = if create_new_file {
+        let new_file: NewFile = file.into();
+        new_file.create(&db)?
+    } else {
+        file.save(&db)?;
+        file.id
+    };
+
+    Ok(Json(UploadResponse {
+        file_size: size,
+        checksum: crc,
+        namespace: namespace.name,
+        file_id: id,
+        file_name: upload_request.name,
+        public_file_name: None,
+    }))
+}
+
+async fn select_file(
+    upload_request: &UploadRequest,
+    pool: web::Data<r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::PgConnection>>>,
+    user: Authenticateduser,
+) -> Result<(Namespace, File, bool), RestError> {
     let attributes = upload_request.attributes.clone();
     let db2 = pool.get()?;
     let user_clone = user.clone();
     let mut target_namespace =
         web::block(move || retrieve_namespace(&attributes, &user_clone, &db2)).await?;
-
-    // TODO url upload
-
     let mut file: File = File::default();
-    let mut new_file = true; // Whether to create a new file or update an existing one
+    let mut new_file = true;
     let mut replace_file = false;
-
-    // Replace file with same name
     if upload_request.replace_equal_names {
         let db = pool.get()?;
         let name = upload_request.name.clone();
@@ -50,14 +80,16 @@ pub async fn ep_upload(
 
         let count = web::block(move || File::find_by_name_count(&db, name, ns)).await?;
 
-        if count > 1 {
-            return Err(RestError::MultipleFilesMatch);
-        } else if count == 1 {
-            let db2 = pool.get()?;
-            let name2 = upload_request.name.clone();
-            file = web::block(move || File::find_by_name(&db2, name2, ns)).await?;
-            replace_file = true;
-            new_file = false;
+        match count {
+            0 => (),
+            1 => {
+                let db2 = pool.get()?;
+                let name2 = upload_request.name.clone();
+                file = web::block(move || File::find_by_name(&db2, name2, ns)).await?;
+                replace_file = true;
+                new_file = false;
+            }
+            _ => return Err(RestError::MultipleFilesMatch),
         }
     }
 
@@ -66,7 +98,7 @@ pub async fn ep_upload(
         new_file = false;
         let db = pool.get()?;
         let uid = user.user.id;
-        file = web::block(move || File::find_by_id(&db, id,uid )).await?;
+        file = web::block(move || File::find_by_id(&db, id, uid)).await?;
 
         // Set target_namespace to file's ns
         let ns_id = file.namespace_id;
@@ -80,34 +112,7 @@ pub async fn ep_upload(
         file.namespace_id = target_namespace.id;
         file.user_id = user.user.id;
     }
-
-    // TODO set groups and tags
-
-    let (crc, size, mime_type) =
-        multipart_to_file(payload, config.deref(), &file.local_name).await?;
-
-    file.checksum = crc.clone();
-    file.file_size = size;
-    file.file_type = mime_type;
-
-    debug!("{:#?}", file);
-
-    let id = if new_file {
-        let new_file: NewFile = file.into();
-        new_file.create(&db)?
-    } else {
-        file.save(&db)?;
-        file.id
-    };
-
-    Ok(Json(UploadResponse {
-        file_size: size,
-        checksum: crc,
-        namespace: target_namespace.name,
-        file_id: id,
-        file_name: upload_request.name,
-        public_file_name: None,
-    }))
+    Ok((target_namespace, file, new_file))
 }
 
 /// Write a multipart to a given file. Returns

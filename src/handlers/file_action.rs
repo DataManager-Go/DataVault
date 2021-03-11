@@ -100,14 +100,10 @@ fn get_namespace(
 ) -> Result<Namespace, RestError> {
     // Use default namespace if none or "default" is provided
     if attributes.namespace.is_empty() || Namespace::is_default_name(&attributes.namespace) {
-        return Ok(user
-            .default_ns
-            .as_ref()
-            .ok_or_else(|| RestError::NotFound)?
-            .clone());
+        return Ok(user.default_ns.as_ref().ok_or(RestError::NotFound)?.clone());
     }
 
     let ns = attributes.namespace.clone();
     let uid = user.user.id;
-    Ok(Namespace::find_by_name(&db, &ns, uid)?.ok_or_else(|| RestError::NotFound)?)
+    Ok(Namespace::find_by_name(&db, &ns, uid)?.ok_or(RestError::NotFound)?)
 }
