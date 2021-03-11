@@ -84,6 +84,8 @@ impl File {
             .map_err(diesel_option)
     }
 
+    /// Get the count of files which can
+    // be found by the passed name and ns
     pub fn find_by_name_count(
         db: &DbConnection,
         f_name: String,
@@ -98,6 +100,7 @@ impl File {
             .map_err(|i| i.into())
     }
 
+    /// Find a file by its name and namespace
     pub fn find_by_name(db: &DbConnection, f_name: String, ns: i32) -> Result<File, RestError> {
         use crate::schema::files::dsl::*;
         files

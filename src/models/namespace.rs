@@ -71,6 +71,8 @@ impl Namespace {
     }
 
     /// Find a namespace by its name
+    /// The creator has to be passed in order
+    /// to prevent unauthorized access
     pub fn find_by_name(
         db: &DbConnection,
         ns_name: &str,

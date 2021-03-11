@@ -21,6 +21,17 @@ jobs:
   clippy:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Clippy
-      run: cargo clippy
+    - name: Installing Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+    - name: Checking out sources
+      uses: actions/checkout@v1
+    - name: Installing clippy
+      run: rustup component add clippy
+    - name: Linting project
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+        args: --all-targets --all-features -- -D warnings
