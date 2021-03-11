@@ -30,7 +30,7 @@ pub async fn ep_register(
 
     let new_user = User::new(req.username.clone(), req.password.clone());
 
-    web::block(move || new_user.create(&db)).await?;
+    web::block(move || new_user.create(&db)).await??;
 
     Ok(SUCCESS)
 }
@@ -47,7 +47,7 @@ pub async fn ep_login(
     let db = pool.get()?;
 
     let token =
-        web::block(move || User::login(&db, &req.username, &req.password, &req.machine_id)).await?;
+        web::block(move || User::login(&db, &req.username, &req.password, &req.machine_id)).await??;
 
     Ok(Json(LoginResponse { token }))
 }

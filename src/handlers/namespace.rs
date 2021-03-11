@@ -25,7 +25,7 @@ pub async fn ep_create_namespace(
     web::block(move || -> Result<(), RestError> {
         namespace::CreateNamespace::new(&req.name, user.user.id).create(&pool.get()?)
     })
-    .await?;
+    .await??;
 
     Ok(SUCCESS)
 }
@@ -38,7 +38,7 @@ pub async fn ep_list_namespace(
     let db = pool.get()?;
 
     let ns_names = web::block(move || Namespace::list(&db, &user.user))
-        .await?
+        .await??
         .into_iter()
         .map(|i| i.name)
         .collect::<Vec<String>>();
@@ -67,7 +67,7 @@ pub async fn ep_delete_namespace(
             Err(RestError::NotFound)
         }
     })
-    .await?;
+    .await??;
 
     Ok(SUCCESS)
 }
@@ -102,7 +102,7 @@ pub async fn ep_rename_namespace(
             Err(RestError::NotFound)
         }
     })
-    .await?;
+    .await??;
 
     Ok(SUCCESS)
 }

@@ -13,7 +13,7 @@ use actix_web::web::{self, Json};
 /// Endpoint for registering new users
 pub async fn ep_file_action(
     pool: web::Data<DbPool>,
-    web::Path(action): web::Path<String>,
+    action: web::Path<String>,
     request: Json<FileRequest>,
     user: Authenticateduser,
 ) -> Result<Json<Success>, RestError> {
@@ -23,7 +23,7 @@ pub async fn ep_file_action(
     let pool_clone = pool.clone();
     let request_clone = request.clone();
     let user_clone = user.clone();
-    let files = web::block(move || find_files(&pool_clone, &request_clone, &user_clone)).await?;
+    let files = web::block(move || find_files(&pool_clone, &request_clone, &user_clone)).await??;
 
     if files.is_empty() {
         return Err(RestError::NotFound);

@@ -140,16 +140,10 @@ impl From<std::io::Error> for RestError {
     }
 }
 
-impl<T> From<BlockingError<T>> for RestError
-where
-    T: std::fmt::Debug + Into<RestError>,
-{
-    fn from(err: BlockingError<T>) -> Self {
+impl From<BlockingError> for RestError {
+    fn from(err: BlockingError) -> Self {
         debug!("{:?}", err);
-        match err {
-            BlockingError::Error(err) => err.into(),
-            BlockingError::Canceled => Self::Internal,
-        }
+        Self::Internal
     }
 }
 

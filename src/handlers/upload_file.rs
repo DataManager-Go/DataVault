@@ -31,7 +31,7 @@ pub async fn ep_upload(
     let request_cloned = upload_request.clone();
     let user_cloned = user.clone();
     let (mut file, namespace) =
-        web::block(move || select_file(&request_cloned, &db, user_cloned)).await?;
+        web::block(move || select_file(&request_cloned, &db, user_cloned)).await??;
 
     // TODO set groups and tags
 
