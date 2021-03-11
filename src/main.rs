@@ -41,12 +41,13 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/user/register").to(handlers::user::ep_register))
             .service(web::resource("/user/login").to(handlers::user::ep_login))
             .service(web::resource("/files").to(handlers::list_file::ep_list_files))
+            .service(web::resource("/file/{action}").to(handlers::file_action::ep_file_action))
             .service(web::resource("/ping").to(handlers::ping::ep_ping))
             .service(
                 web::resource("/namespace/create").to(handlers::namespace::ep_create_namespace),
             )
             .service(web::resource("/namespaces").to(handlers::namespace::ep_list_namespace))
-            .service(web::resource("/namespace/update").to(handlers::namespace::ep_list_namespace))
+            .service(web::resource("/namespace/update").to(handlers::namespace::ep_rename_namespace))
             .service(web::resource("/upload/file").to(handlers::upload_file::ep_upload))
             .service(
                 web::resource("/namespace/delete").to(handlers::namespace::ep_delete_namespace),

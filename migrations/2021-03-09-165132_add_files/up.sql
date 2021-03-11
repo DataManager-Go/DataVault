@@ -14,4 +14,4 @@ CREATE TABLE public.files (
     unique(local_name),
     foreign key (uploader) references users(id)
 );
-
+ALTER SEQUENCE files_id_seq RESTART WITH 1;

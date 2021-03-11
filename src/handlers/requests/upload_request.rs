@@ -4,7 +4,7 @@ use actix_web::{
     Error, FromRequest, HttpRequest,
 };
 use futures::future::Ready;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     handlers::authentication::Authenticateduser,
@@ -44,7 +44,7 @@ pub struct UploadRequest {
     pub attributes: Option<FileAttributes>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FileAttributes {
     #[serde(rename = "tags")]
     pub tags: Option<Vec<String>>,

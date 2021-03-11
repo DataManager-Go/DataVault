@@ -1,4 +1,7 @@
-use crate::{models::user::User, response_code::{self,RestError}};
+use crate::{
+    models::user::User,
+    response_code::{self, RestError},
+};
 use crate::{schema::*, DbConnection};
 use diesel::prelude::*;
 use diesel::result::Error::NotFound;
@@ -46,16 +49,25 @@ impl<'a> CreateNamespace<'a> {
 }
 
 impl Namespace {
+    /// Returns true if the name matches with
+    // the name of a default namespace
+    pub fn is_default_name(ns_name: &str) -> bool {
+        ns_name.to_lowercase() == "default"
+    }
+
+    /// Returns true if the namespace is a default namespace
+    pub fn is_default(&self) -> bool {
+        Namespace::is_default_name(&self.name)
+    }
+
     /// Find a namespace by its id
-    pub fn find_by_id(
-        db: &DbConnection,
-        idd: i32,
-    ) -> Result<Namespace, RestError> {
+    pub fn find_by_id(db: &DbConnection, idd: i32) -> Result<Namespace, RestError> {
         use crate::schema::namespaces::dsl::*;
 
         namespaces
             .find(idd)
-            .first(db).map_err(response_code::diesel_option)
+            .first(db)
+            .map_err(response_code::diesel_option)
     }
 
     /// Find a namespace by its name

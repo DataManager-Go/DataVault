@@ -1,4 +1,7 @@
+use chrono::prelude::*;
 use serde::Serialize;
+
+use super::requests::upload_request::FileAttributes;
 
 #[derive(Debug, Serialize)]
 pub struct StringResponse {
@@ -31,4 +34,28 @@ pub struct UploadResponse {
     pub file_size: i64,
     #[serde(rename = "ns")]
     pub namespace: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct FileItemResponse {
+    pub id: i32,
+    pub size: i64,
+    #[serde(rename = "creation")]
+    pub creation_date: DateTime<Utc>,
+    pub name: String,
+    #[serde(rename = "isPub")]
+    pub is_public: bool,
+    #[serde(rename = "pubname")]
+    pub public_name: String,
+    #[serde(rename = "attrib")]
+    pub attributes: FileAttributes,
+    #[serde(rename = "e")]
+    pub encryption: String,
+    #[serde(rename = "checksum")]
+    pub checksum: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct FileListResponse {
+    pub files: Vec<FileItemResponse>,
 }

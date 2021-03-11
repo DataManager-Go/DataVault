@@ -43,6 +43,9 @@ pub enum RestError {
     #[error("Illegal operation")]
     IllegalOperation,
 
+    #[error("Not allowed")]
+    NotAllowed,
+
     // Internal
     #[error("Unknown Internal Error")]
     Internal,
@@ -62,6 +65,7 @@ impl RestError {
             Self::AlreadyExists => "AlreadyExists".to_string(),
             Self::IllegalOperation => "IllegalOperation".to_string(),
             Self::MultipleFilesMatch => "MultipleFilesMatch".to_string(),
+            Self::NotAllowed => "NotAllowed".to_string(),
             _ => "BadRequest".to_string(),
         }
     }
@@ -78,6 +82,7 @@ impl ResponseError for RestError {
             Self::AlreadyExists => StatusCode::UNPROCESSABLE_ENTITY,
             Self::IllegalOperation => StatusCode::UNPROCESSABLE_ENTITY,
             Self::MultipleFilesMatch => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::NotAllowed => StatusCode::METHOD_NOT_ALLOWED,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

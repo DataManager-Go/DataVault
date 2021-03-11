@@ -1,17 +1,14 @@
-use super::authentication::Authenticateduser;
-use crate::{
-    config::Config,
-    response_code::{RestError, Success, SUCCESS},
-    DbPool,
-};
+use super::{authentication::Authenticateduser, requests::file, response};
+use crate::{response_code::RestError, DbPool};
 
 use actix_web::web::{self, Json};
+use response::FileListResponse;
 
 /// Endpoint for registering new users
 pub async fn ep_list_files(
     _pool: web::Data<DbPool>,
-    _config: web::Data<Config>,
+    _request: Json<file::FileList>,
     _user: Authenticateduser,
-) -> Result<Json<Success>, RestError> {
-    Ok(SUCCESS)
+) -> Result<Json<FileListResponse>, RestError> {
+    Ok(Json(FileListResponse { files: vec![] }))
 }

@@ -17,6 +17,11 @@ pub async fn ep_create_namespace(
         return Err(RestError::BadRequest);
     }
 
+    // Don't allow creating 'default' namespaces
+    if Namespace::is_default_name(&req.name) {
+        return Err(RestError::IllegalOperation);
+    }
+
     web::block(move || -> Result<(), RestError> {
         namespace::CreateNamespace::new(&req.name, user.user.id).create(&pool.get()?)
     })
@@ -49,6 +54,11 @@ pub async fn ep_delete_namespace(
 ) -> Result<Json<Success>, RestError> {
     let db = pool.get()?;
 
+    // Don't allow deleting 'default' namespaces
+    if Namespace::is_default_name(&req.name) {
+        return Err(RestError::IllegalOperation);
+    }
+
     web::block(move || -> Result<(), RestError> {
         if let Some(ns) = Namespace::find_by_name(&db, &req.name, user.user.id)? {
             ns.delete(&db)?;
@@ -68,7 +78,17 @@ pub async fn ep_rename_namespace(
     user: Authenticateduser,
     req: web::Json<NamespaceRequest>,
 ) -> Result<Json<Success>, RestError> {
-    if req.new_name.is_none() {
+    let new_name = match &req.new_name {
+        Some(name) => name.clone(),
+        None => return Err(RestError::BadRequest),
+    };
+
+    // Don't allow modifying 'default' namespaces
+    if Namespace::is_default_name(&req.name) || Namespace::is_default_name(&new_name) {
+        return Err(RestError::IllegalOperation);
+    }
+
+    if req.name == new_name{
         return Err(RestError::BadRequest);
     }
 
@@ -76,7 +96,7 @@ pub async fn ep_rename_namespace(
 
     web::block(move || -> Result<(), RestError> {
         if let Some(ns) = Namespace::find_by_name(&db, &req.name, user.user.id)? {
-            ns.rename(&db, req.new_name.as_ref().unwrap())?;
+            ns.rename(&db, new_name.as_ref())?;
             Ok(())
         } else {
             Err(RestError::NotFound)

@@ -65,7 +65,7 @@ pub async fn ep_upload(
         // Replace file by id
         new_file = false;
         let db = pool.get()?;
-        file = web::block(move || File::find_by_id(id, &db)).await?;
+        file = web::block(move || File::find_by_id(&db, id)).await?;
 
         // Set target_namespace to file's ns
         let ns_id = file.namespace_id;
@@ -174,7 +174,7 @@ fn retrieve_namespace(
         .unwrap_or_else(|| "default".to_string());
 
     Ok({
-        if ns_name == "default" {
+        if Namespace::is_default_name(&ns_name) {
             user.default_ns
                 .as_ref()
                 .cloned()

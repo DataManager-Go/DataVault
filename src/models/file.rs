@@ -72,7 +72,7 @@ impl NewFile {
 }
 
 impl File {
-    pub fn find_by_id(idd: i32, db: &DbConnection) -> Result<File, RestError> {
+    pub fn find_by_id(db: &DbConnection, idd: i32) -> Result<File, RestError> {
         use crate::schema::files::dsl::*;
         files.find(idd).first::<File>(db).map_err(diesel_option)
     }
