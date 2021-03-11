@@ -1,4 +1,4 @@
-CREATE TABLE public.files (
+CREATE TABLE files (
     id SERIAL PRIMARY KEY,
     name text NOT NULL,
     uploader integer NOT NULL,

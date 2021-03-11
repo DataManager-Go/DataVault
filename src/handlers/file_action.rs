@@ -1,12 +1,14 @@
-use super::{authentication::Authenticateduser, requests::file::FileRequest, response};
+use super::{
+    authentication::Authenticateduser,
+    requests::{file::FileRequest, upload_request::FileAttributes},
+};
 use crate::{
     models::{file::File, namespace::Namespace},
-    response_code::RestError,
+    response_code::{RestError, Success, SUCCESS},
     DbConnection, DbPool,
 };
 
 use actix_web::web::{self, Json};
-use response::FileListResponse;
 
 /// Endpoint for registering new users
 pub async fn ep_file_action(
@@ -14,24 +16,14 @@ pub async fn ep_file_action(
     web::Path(action): web::Path<String>,
     request: Json<FileRequest>,
     user: Authenticateduser,
-) -> Result<Json<FileListResponse>, RestError> {
+) -> Result<Json<Success>, RestError> {
     validate_action_request(&request, &action)?;
 
-    let mut files: Vec<File> = vec![];
-
-    let ns = if request.file_id > 0 {
-        // FileID provided, only do the file_action for this single file
-        let fid = request.file_id;
-        let db = pool.get()?;
-        let file = web::block(move || File::find_by_id(&db, fid)).await?;
-        let f_ns = file.namespace_id;
-        let db = pool.get()?;
-        files.push(file);
-        web::block(move || Namespace::find_by_id(&db, f_ns)).await?
-    } else {
-        // Filename provided, find all matching files
-        get_namespace(pool.get()?, &user, &request).await?
-    };
+    // Select files
+    let pool_clone = pool.clone();
+    let request_clone = request.clone();
+    let user_clone = user.clone();
+    let files = web::block(move || find_files(&pool_clone, &request_clone, &user_clone)).await?;
 
     if files.is_empty() {
         return Err(RestError::NotFound);
@@ -41,13 +33,50 @@ pub async fn ep_file_action(
         return Err(RestError::MultipleFilesMatch);
     }
 
-    Ok(Json(FileListResponse { files: vec![] }))
+    // TODO actually executing the action
+
+    Ok(SUCCESS)
 }
 
-// Validate the file action request and return a namespace,
-// if no file was given by id
+/// Get the files to update based on
+/// the request that was made
+fn find_files(
+    pool: &web::Data<DbPool>,
+    request: &FileRequest,
+    user: &Authenticateduser,
+) -> Result<Vec<File>, RestError> {
+    // Whether to search for a single certain file or by name
+
+    Ok(if request.file_id > 0 {
+        // FileID provided, only do the file_action for this single file
+
+        vec![File::find_by_id(
+            &pool.get()?,
+            request.file_id,
+            user.user.id,
+        )?]
+    } else {
+        // FileName provided, find all matching files
+
+        let ns = get_namespace(pool.get()?, &user, &request.attributes)?;
+
+        // Build search file
+        let search_file = File {
+            user_id: user.user.id,
+            id: request.file_id,
+            namespace_id: ns.id,
+            name: request.name.clone().unwrap_or_default(),
+            ..File::default()
+        };
+
+        search_file.search(&pool.get()?, false)?
+    })
+}
+
+/// Validate the file action request and return a namespace,
+/// if no file was given by id
 fn validate_action_request(request: &FileRequest, action: &str) -> Result<(), RestError> {
-    if request.name.is_empty() && request.file_id <= 0 {
+    if request.name.as_ref().map(|i| i.len()).unwrap_or_default() == 0 && request.file_id <= 0 {
         return Err(RestError::BadRequest);
     }
 
@@ -63,15 +92,14 @@ fn validate_action_request(request: &FileRequest, action: &str) -> Result<(), Re
     Ok(())
 }
 
-async fn get_namespace(
+/// Get the requested namespace
+fn get_namespace(
     db: DbConnection,
     user: &Authenticateduser,
-    request: &FileRequest,
+    attributes: &FileAttributes,
 ) -> Result<Namespace, RestError> {
     // Use default namespace if none or "default" is provided
-    if request.attributes.namespace.is_empty()
-        || Namespace::is_default_name(&request.attributes.namespace)
-    {
+    if attributes.namespace.is_empty() || Namespace::is_default_name(&attributes.namespace) {
         return Ok(user
             .default_ns
             .as_ref()
@@ -79,9 +107,7 @@ async fn get_namespace(
             .clone());
     }
 
-    let ns = request.attributes.namespace.clone();
+    let ns = attributes.namespace.clone();
     let uid = user.user.id;
-    Ok(web::block(move || Namespace::find_by_name(&db, &ns, uid))
-        .await?
-        .ok_or_else(|| RestError::NotFound)?)
+    Ok(Namespace::find_by_name(&db, &ns, uid)?.ok_or_else(|| RestError::NotFound)?)
 }

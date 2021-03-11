@@ -16,9 +16,9 @@ pub struct FileList {
 pub struct FileRequest {
     #[serde(rename = "fid")]
     pub file_id: i32,
-    pub name: String,
+    pub name: Option<String>,
     #[serde(rename = "pubname")]
-    pub public_name: String,
+    pub public_name: Option<String>,
     // updates: FileUpdateItem,
     pub all: bool,
     pub attributes: FileAttributes,

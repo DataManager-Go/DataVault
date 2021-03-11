@@ -1,6 +1,8 @@
 use chrono::prelude::*;
 use serde::Serialize;
 
+use crate::models::file::File;
+
 use super::requests::upload_request::FileAttributes;
 
 #[derive(Debug, Serialize)]
@@ -50,7 +52,7 @@ pub struct FileItemResponse {
     #[serde(rename = "attrib")]
     pub attributes: FileAttributes,
     #[serde(rename = "e")]
-    pub encryption: String,
+    pub encryption: i32,
     #[serde(rename = "checksum")]
     pub checksum: String,
 }
@@ -58,4 +60,24 @@ pub struct FileItemResponse {
 #[derive(Debug, Serialize, Clone)]
 pub struct FileListResponse {
     pub files: Vec<FileItemResponse>,
+}
+
+impl From<File> for FileItemResponse {
+    fn from(file: File) -> FileItemResponse {
+        FileItemResponse {
+            id: file.id,
+            size: file.file_size,
+            creation_date: file.uploaded_at,
+            name: file.name,
+            is_public: file.is_public,
+            public_name: file.public_filename.unwrap_or_default(),
+            encryption: file.encryption,
+            checksum: file.checksum,
+            attributes: FileAttributes {
+                groups: None,
+                tags: None,
+                namespace: "TODO".to_string(),
+            },
+        }
+    }
 }

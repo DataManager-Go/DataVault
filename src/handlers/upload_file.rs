@@ -65,7 +65,8 @@ pub async fn ep_upload(
         // Replace file by id
         new_file = false;
         let db = pool.get()?;
-        file = web::block(move || File::find_by_id(&db, id)).await?;
+        let uid = user.user.id;
+        file = web::block(move || File::find_by_id(&db, id,uid )).await?;
 
         // Set target_namespace to file's ns
         let ns_id = file.namespace_id;

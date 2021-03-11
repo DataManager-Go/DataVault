@@ -72,9 +72,16 @@ impl NewFile {
 }
 
 impl File {
-    pub fn find_by_id(db: &DbConnection, idd: i32) -> Result<File, RestError> {
+    /// Find a file by its id.
+    /// The user owner has to be passed as well, in order
+    /// To prevent unauthorized access to files
+    pub fn find_by_id(db: &DbConnection, idd: i32, uid: i32) -> Result<File, RestError> {
         use crate::schema::files::dsl::*;
-        files.find(idd).first::<File>(db).map_err(diesel_option)
+        files
+            .find(idd)
+            .filter(user_id.eq(uid))
+            .first::<File>(db)
+            .map_err(diesel_option)
     }
 
     pub fn find_by_name_count(
@@ -107,6 +114,28 @@ impl File {
             .filter(id.eq(self.id))
             .execute(db)?;
         Ok(())
+    }
+
+    /// Search for a file. Unset values are ignored
+    pub fn search(&self, db: &DbConnection, ignore_ns: bool) -> Result<Vec<File>, RestError> {
+        use crate::schema::files::dsl::*;
+        let mut query = {
+            if self.id > 0 {
+                files.filter(id.eq(self.id)).into_boxed()
+            } else {
+                files.filter(name.ilike(&self.name)).into_boxed()
+            }
+        };
+
+        // Ensure only to select files which
+        // are in some way associated with a user
+        if self.namespace_id > 0 && !ignore_ns {
+            query = query.filter(namespace_id.eq(self.namespace_id));
+        } else {
+            query = query.filter(user_id.eq(self.user_id));
+        }
+
+        query.load::<File>(db).map_err(|i| i.into())
     }
 }
 
