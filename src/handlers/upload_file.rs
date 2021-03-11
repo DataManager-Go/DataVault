@@ -42,10 +42,10 @@ pub async fn ep_upload(
     file.file_size = size;
     file.file_type = mime_type;
 
-    debug!("{:#?}", file);
+    debug!("{:?}", file);
 
     let id = if file.id == 0 {
-        let new_file: NewFile = file.into();
+        let new_file: NewFile = file.clone().into();
         new_file.create(&pool.get()?)?
     } else {
         file.save(&pool.get()?)?;
@@ -57,7 +57,7 @@ pub async fn ep_upload(
         checksum: crc,
         namespace: namespace.name,
         file_id: id,
-        file_name: upload_request.name,
+        file_name: file.name,
         public_file_name: None,
     }))
 }

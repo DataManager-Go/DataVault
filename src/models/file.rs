@@ -1,13 +1,15 @@
 use crate::response_code::{diesel_option, RestError};
 use crate::schema::files;
 use crate::{
+    config::Config,
     models::{namespace::Namespace, user::User},
     DbConnection,
 };
+use async_std::{fs, path::Path};
 use chrono::prelude::*;
 use diesel::{dsl::count_star, prelude::*};
 
-#[derive(Identifiable, Queryable, Associations, Debug, AsChangeset)]
+#[derive(Identifiable, Queryable, Associations, Debug, AsChangeset, Clone)]
 #[belongs_to(User)]
 #[changeset_options(treat_none_as_null = "true")]
 #[belongs_to(Namespace)]
@@ -112,6 +114,17 @@ impl File {
             .set(self)
             .filter(id.eq(self.id))
             .execute(db)?;
+        Ok(())
+    }
+
+    /// Delete the file
+    pub async fn delete(&self, db: &DbConnection, config: &Config) -> Result<(), RestError> {
+        // Delete local file
+        // TODO shredder file
+        fs::remove_file(Path::new(&config.server.file_output_path).join(&self.local_name)).await?;
+
+        // rm from DB
+        diesel::delete(self).execute(db)?;
         Ok(())
     }
 

@@ -3,6 +3,7 @@ use super::{
     requests::{file::FileRequest, upload_request::FileAttributes},
 };
 use crate::{
+    config::Config,
     models::{file::File, namespace::Namespace},
     response_code::{RestError, Success, SUCCESS},
     DbConnection, DbPool,
@@ -13,6 +14,7 @@ use actix_web::web::{self, Json};
 /// Endpoint for registering new users
 pub async fn ep_file_action(
     pool: web::Data<DbPool>,
+    config: web::Data<Config>,
     action: web::Path<String>,
     request: Json<FileRequest>,
     user: Authenticateduser,
@@ -34,8 +36,30 @@ pub async fn ep_file_action(
     }
 
     // TODO actually executing the action
+    run_action(&action, files, &request, &pool.get()?, &config).await?;
 
     Ok(SUCCESS)
+}
+
+async fn run_action(
+    action: &str,
+    files: Vec<File>,
+    request: &FileRequest,
+    db: &DbConnection,
+    config: &Config,
+) -> Result<(), RestError> {
+    match action {
+        "get" => (),
+        "update" => (),
+        "delete" => {
+            for file in files {
+                file.delete(db, config).await?;
+            }
+        }
+        "publish" => (),
+        _ => unreachable!(),
+    };
+    Ok(())
 }
 
 /// Get the files to update based on
