@@ -1,4 +1,4 @@
-use crate::{models::user::User, response_code::RestError};
+use crate::{models::user::User, response_code::{self,RestError}};
 use crate::{schema::*, DbConnection};
 use diesel::prelude::*;
 use diesel::result::Error::NotFound;
@@ -46,6 +46,18 @@ impl<'a> CreateNamespace<'a> {
 }
 
 impl Namespace {
+    /// Find a namespace by its id
+    pub fn find_by_id(
+        db: &DbConnection,
+        idd: i32,
+    ) -> Result<Namespace, RestError> {
+        use crate::schema::namespaces::dsl::*;
+
+        namespaces
+            .find(idd)
+            .first(db).map_err(response_code::diesel_option)
+    }
+
     /// Find a namespace by its name
     pub fn find_by_name(
         db: &DbConnection,

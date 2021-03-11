@@ -18,8 +18,6 @@ pub mod utils;
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
-use handlers::file::ep_list_files;
-use handlers::user::{ep_login, ep_register};
 
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 pub type DbConnection = PooledConnection<ConnectionManager<PgConnection>>;
@@ -40,16 +38,16 @@ async fn main() -> std::io::Result<()> {
             // Middlewares
             .wrap(middleware::Logger::default())
             // Services
-            .service(web::resource("/user/register").to(ep_register))
-            .service(web::resource("/user/login").to(ep_login))
-            .service(web::resource("/files").to(ep_list_files))
+            .service(web::resource("/user/register").to(handlers::user::ep_register))
+            .service(web::resource("/user/login").to(handlers::user::ep_login))
+            .service(web::resource("/files").to(handlers::list_file::ep_list_files))
             .service(web::resource("/ping").to(handlers::ping::ep_ping))
             .service(
                 web::resource("/namespace/create").to(handlers::namespace::ep_create_namespace),
             )
             .service(web::resource("/namespaces").to(handlers::namespace::ep_list_namespace))
             .service(web::resource("/namespace/update").to(handlers::namespace::ep_list_namespace))
-            .service(web::resource("/upload/file").to(handlers::file::ep_upload))
+            .service(web::resource("/upload/file").to(handlers::upload_file::ep_upload))
             .service(
                 web::resource("/namespace/delete").to(handlers::namespace::ep_delete_namespace),
             )

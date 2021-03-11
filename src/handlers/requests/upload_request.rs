@@ -6,9 +6,14 @@ use actix_web::{
 use futures::future::Ready;
 use serde::Deserialize;
 
-use crate::{handlers::authentication::Authenticateduser, response_code::RestError};
+use crate::{
+    handlers::authentication::Authenticateduser,
+    models::file::{self, File},
+    response_code::RestError,
+    utils,
+};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct UploadRequest {
     // Required fields
     #[serde(rename = "type")]
@@ -39,7 +44,7 @@ pub struct UploadRequest {
     pub attributes: Option<FileAttributes>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct FileAttributes {
     #[serde(rename = "tags")]
     pub tags: Option<Vec<String>>,
@@ -49,7 +54,7 @@ pub struct FileAttributes {
     pub namespace: String,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum UploadType {
     File,
     Url,
@@ -109,6 +114,24 @@ impl FromRequest for UploadRequest {
     }
 }
 
+impl Into<File> for UploadRequest {
+    fn into(self) -> File {
+        File {
+            // Select random string as name if not provided
+            name: if self.name.is_empty() {
+                utils::random_string(20)
+            } else {
+                self.name
+            },
+            encryption: self.encryption.unwrap_or(0) as i32,
+            is_public: self.public.unwrap_or(false),
+            public_filename: self.public_name,
+            local_name: utils::random_string(30),
+            ..file::File::default()
+        }
+    }
+}
+
 fn is_encryption_valid(encr: i8) -> Option<bool> {
     match encr {
         0 => None,
@@ -123,7 +146,7 @@ impl UploadRequest {
             return Err(RestError::IllegalOperation);
         }
 
-        if self.replace_equal_names && self.replace_file_by_id.unwrap_or_default() > 0 {
+        if self.replace_equal_names && self.replace_file_by_id.is_some() {
             return Err(RestError::IllegalOperation);
         }
 

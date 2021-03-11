@@ -14,6 +14,7 @@ lazy_static! {
 /// Defines a struct which implements FromRequest.
 /// This allows passing as requirement for a request
 /// and results in a valid session being required
+#[derive(Clone)]
 pub struct Authenticateduser {
     pub default_ns: Option<Namespace>,
     pub user: User,
