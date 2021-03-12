@@ -9,10 +9,13 @@ use crate::{
     response_code::RestError,
     DbConnection, DbPool,
 };
-use actix_multipart::Multipart;
 
-use actix_web::web::{self, Json};
-use async_std::{fs, io::prelude::*, io::BufWriter, path::Path};
+use actix_web::{
+    dev::Decompress,
+    web::{self, Json, Payload},
+    HttpRequest,
+};
+use async_std::{fs, io::prelude::*, path::Path};
 use futures::StreamExt;
 use lazy_static::__Deref;
 
@@ -22,7 +25,8 @@ pub async fn ep_upload(
     config: web::Data<Config>,
     user: Authenticateduser,
     upload_request: UploadRequest,
-    payload: Multipart,
+    payload: Payload,
+    request: HttpRequest,
 ) -> Result<Json<UploadResponse>, RestError> {
     upload_request.validate(&user)?;
 
@@ -35,7 +39,7 @@ pub async fn ep_upload(
     // TODO set groups and tags
 
     let (crc, size, mime_type) =
-        multipart_to_file(payload, config.deref(), &file.local_name).await?;
+        save_to_file(payload, config.deref(), &file.local_name, request).await?;
 
     file.checksum = crc.clone();
     file.file_size = size;
@@ -107,33 +111,28 @@ fn select_file(
 
 /// Write a multipart to a given file. Returns
 /// (crc32, size, mimeType)
-pub async fn multipart_to_file(
-    mut part: Multipart,
+pub async fn save_to_file(
+    body: Payload,
     config: &Config,
     filename: &str,
+    request: HttpRequest,
 ) -> Result<(String, i64, String), RestError> {
-    // Get first multipart file
-    let mut part = part
-        .next()
-        .await
-        .ok_or(RestError::BadRequest)?
-        .map_err(|_| RestError::BadRequest)?;
-
     // Create new crc32 hasher to calculate the checksum
     let mut hasher = crc32fast::Hasher::new();
 
     // Create a new local file
-    let file = fs::File::create(Path::new(&config.server.file_output_path).join(filename))
+    let mut file = fs::File::create(Path::new(&config.server.file_output_path).join(filename))
         .await
         .map_err::<RestError, _>(|i| i.into())?;
-
-    let mut file_writer = BufWriter::new(&file);
 
     let mut size: i64 = 0;
     let mut mime_type: Option<String> = None;
 
+    // Use header to determine whether the file should be decompressed
+    let mut stream = Decompress::from_headers(body, request.headers());
+
     // Write part
-    while let Some(chunk) = part.next().await {
+    while let Some(chunk) = stream.next().await {
         let data = chunk.map_err(|_| RestError::UnknownIO)?;
 
         // parse filetype on first chunk
@@ -142,7 +141,7 @@ pub async fn multipart_to_file(
         }
 
         // Write to file
-        file_writer.write_all(&data).await?;
+        file.write_all(&data).await?;
 
         // Update crc32 hash
         hasher.update(&data);
@@ -150,8 +149,8 @@ pub async fn multipart_to_file(
         size += data.len() as i64;
     }
 
-    file_writer.flush().await?;
-    file.sync_data().await?;
+    file.flush().await?;
+    file.sync_all().await?;
 
     let crc = format!("{:x}", hasher.finalize());
 
