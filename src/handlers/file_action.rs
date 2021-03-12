@@ -43,7 +43,7 @@ pub async fn ep_file_action(
         return Err(RestError::MultipleFilesMatch);
     }
 
-    run_action(&action, files, &request, &pool.get()?, &config).await?;
+    run_action(&action, files, &pool.get()?, &config).await?;
 
     Ok(SUCCESS)
 }
@@ -100,7 +100,7 @@ pub async fn ep_file_download(
 async fn run_action(
     action: &str,
     files: Vec<File>,
-    request: &FileRequest,
+    // request: &FileRequest,
     db: &DbConnection,
     config: &Config,
 ) -> Result<(), RestError> {
