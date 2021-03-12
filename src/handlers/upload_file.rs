@@ -1,7 +1,6 @@
 use super::{
-    authentication::Authenticateduser,
-    requests::upload_request::{FileAttributes, UploadRequest},
-    response::UploadResponse,
+    authentication::Authenticateduser, requests::upload_request::UploadRequest,
+    response::UploadResponse, utils::retrieve_namespace,
 };
 use crate::{
     config::Config,
@@ -70,7 +69,7 @@ fn select_file(
     db: &DbConnection,
     user: Authenticateduser,
 ) -> Result<(File, Namespace), RestError> {
-    let mut target_namespace = retrieve_namespace(&upload_request.attributes, &user, db)?;
+    let mut target_namespace = retrieve_namespace(db, &upload_request.attributes.as_ref(), &user)?;
 
     let mut file: File = File::default();
     let mut replace_file = false;
@@ -78,12 +77,13 @@ fn select_file(
     // Find by name
     if upload_request.replace_equal_names {
         match File::find_by_name_count(db, &upload_request.name, target_namespace.id)? {
-            0 => (),
+            0 => (), // No file found, continue as usual and create a new one
             1 => {
+                // One file found, replace this one
                 file = File::find_by_name(db, &upload_request.name, target_namespace.id)?;
                 replace_file = true;
             }
-            _ => return Err(RestError::MultipleFilesMatch),
+            _ => return Err(RestError::MultipleFilesMatch), // More than one file found, prevent overwriting the first one
         }
     }
 
@@ -156,28 +156,4 @@ pub async fn multipart_to_file(
     let crc = format!("{:x}", hasher.finalize());
 
     Ok((crc, size, mime_type.unwrap_or_default()))
-}
-
-/// Try to get the desired namespace. Use the precached
-/// namespace if possible and desired
-fn retrieve_namespace(
-    attributes: &Option<FileAttributes>,
-    user: &Authenticateduser,
-    db: &DbConnection,
-) -> Result<Namespace, RestError> {
-    let ns_name = attributes
-        .as_ref()
-        .map(|i| i.namespace.clone())
-        .unwrap_or_else(|| "default".to_string());
-
-    Ok({
-        if Namespace::is_default_name(&ns_name) {
-            user.default_ns
-                .as_ref()
-                .cloned()
-                .unwrap_or(user.user.get_default_namespace(&db)?)
-        } else {
-            Namespace::find_by_name(&db, &ns_name, user.user.id)?.ok_or(RestError::NotFound)?
-        }
-    })
 }

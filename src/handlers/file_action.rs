@@ -1,11 +1,9 @@
 use super::{
-    authentication::Authenticateduser,
-    chunked::ChunkedReadFile,
-    requests::{file::FileRequest, upload_request::FileAttributes},
+    authentication::Authenticateduser, chunked::ChunkedReadFile, requests::file::FileRequest,
 };
 use crate::{
     config::Config,
-    models::{file::File, namespace::Namespace},
+    models::file::File,
     response_code::{RestError, Success, SUCCESS},
     DbConnection, DbPool,
 };
@@ -97,6 +95,7 @@ pub async fn ep_file_download(
     Ok(response.streaming(reader))
 }
 
+/// Run the actual file action
 async fn run_action(
     action: &str,
     files: Vec<File>,
@@ -114,18 +113,6 @@ async fn run_action(
     Ok(())
 }
 
-/// Delete multiple files
-async fn delete_files(
-    db: &DbConnection,
-    config: &Config,
-    files: Vec<File>,
-) -> Result<(), RestError> {
-    for file in files {
-        file.delete(db, config).await?;
-    }
-    Ok(())
-}
-
 /// Get the files to update based on
 /// the request that was made
 fn find_files(
@@ -138,6 +125,7 @@ fn find_files(
     Ok(if request.file_id > 0 {
         // FileID provided, only do the file_action for this single file
 
+        // Simply find the file by its ID
         vec![File::find_by_id(
             &pool.get()?,
             request.file_id,
@@ -146,7 +134,8 @@ fn find_files(
     } else {
         // FileName provided, find all matching files
 
-        let ns = get_namespace(pool.get()?, &user, &request.attributes)?;
+        // Pick ns
+        let ns = super::utils::retrieve_namespace(&pool.get()?, &Some(&request.attributes), &user)?;
 
         // Build search file
         let search_file = File {
@@ -161,6 +150,18 @@ fn find_files(
     })
 }
 
+/// Delete multiple files
+async fn delete_files(
+    db: &DbConnection,
+    config: &Config,
+    files: Vec<File>,
+) -> Result<(), RestError> {
+    for file in files {
+        file.delete(db, config).await?;
+    }
+    Ok(())
+}
+
 /// Validate the file action request and return a namespace,
 /// if no file was given by id
 fn validate_action_request(request: &FileRequest) -> Result<(), RestError> {
@@ -169,20 +170,4 @@ fn validate_action_request(request: &FileRequest) -> Result<(), RestError> {
     }
 
     Ok(())
-}
-
-/// Get the requested namespace
-fn get_namespace(
-    db: DbConnection,
-    user: &Authenticateduser,
-    attributes: &FileAttributes,
-) -> Result<Namespace, RestError> {
-    // Use default namespace if none or "default" is provided
-    if attributes.namespace.is_empty() || Namespace::is_default_name(&attributes.namespace) {
-        return Ok(user.default_ns.as_ref().ok_or(RestError::NotFound)?.clone());
-    }
-
-    let ns = attributes.namespace.clone();
-    let uid = user.user.id;
-    Ok(Namespace::find_by_name(&db, &ns, uid)?.ok_or(RestError::NotFound)?)
 }

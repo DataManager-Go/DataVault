@@ -46,8 +46,8 @@ pub async fn ep_login(
 
     let db = pool.get()?;
 
-    let token =
-        web::block(move || User::login(&db, &req.username, &req.password, &req.machine_id)).await??;
+    let token = web::block(move || User::login(&db, &req.username, &req.password, &req.machine_id))
+        .await??;
 
     Ok(Json(LoginResponse { token }))
 }
