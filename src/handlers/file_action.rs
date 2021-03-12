@@ -1,5 +1,6 @@
 use super::{
     authentication::Authenticateduser,
+    chunked::ChunkedReadFile,
     requests::{file::FileRequest, upload_request::FileAttributes},
 };
 use crate::{
@@ -9,9 +10,11 @@ use crate::{
     DbConnection, DbPool,
 };
 
+use actix_web::web::HttpResponse;
 use actix_web::web::{self, Json};
+use async_std::path::Path;
 
-/// Endpoint for registering new users
+/// Endpoint for running a file action
 pub async fn ep_file_action(
     pool: web::Data<DbPool>,
     config: web::Data<Config>,
@@ -19,7 +22,12 @@ pub async fn ep_file_action(
     request: Json<FileRequest>,
     user: Authenticateduser,
 ) -> Result<Json<Success>, RestError> {
-    validate_action_request(&request, &action)?;
+    validate_action_request(&request)?;
+
+    match action.as_str() {
+        "delete" | "update" | "publish" => (),
+        _ => return Err(RestError::NotAllowed),
+    };
 
     // Select files
     let pool_clone = pool.clone();
@@ -35,10 +43,58 @@ pub async fn ep_file_action(
         return Err(RestError::MultipleFilesMatch);
     }
 
-    // TODO actually executing the action
     run_action(&action, files, &request, &pool.get()?, &config).await?;
 
     Ok(SUCCESS)
+}
+
+/// Endpoint for downloading a file
+pub async fn ep_file_download(
+    pool: web::Data<DbPool>,
+    config: web::Data<Config>,
+    request: Json<FileRequest>,
+    user: Authenticateduser,
+) -> Result<HttpResponse, RestError> {
+    validate_action_request(&request)?;
+
+    if request.all {
+        return Err(RestError::IllegalOperation);
+    }
+
+    // Select files
+    let pool_clone = pool.clone();
+    let request_clone = request.clone();
+    let user_clone = user.clone();
+    let files = web::block(move || find_files(&pool_clone, &request_clone, &user_clone)).await??;
+
+    if files.is_empty() {
+        return Err(RestError::NotFound);
+    }
+
+    if files.len() > 1 {
+        return Err(RestError::MultipleFilesMatch);
+    }
+
+    // We only have this one file
+    let file = &files[0];
+
+    // Open local file
+    let f = std::fs::File::open(Path::new(&config.server.file_output_path).join(&file.local_name))?;
+    let reader = ChunkedReadFile::new(f.metadata()?.len(), 0, f);
+
+    // Build response
+    let mut response = HttpResponse::Ok();
+    let mut response = response
+        .insert_header(("X-Filename", file.name.as_str()))
+        .insert_header(("Checksum", file.checksum.as_str()))
+        .insert_header(("X-FileID", file.id))
+        .insert_header(("ContentLength", file.file_size));
+
+    if file.encryption > 0 {
+        response = response.insert_header(("X-Encryption", file.encryption));
+    }
+
+    Ok(response.streaming(reader))
 }
 
 async fn run_action(
@@ -48,17 +104,25 @@ async fn run_action(
     db: &DbConnection,
     config: &Config,
 ) -> Result<(), RestError> {
+    // TODO implement functions
     match action {
-        "get" => (),
         "update" => (),
-        "delete" => {
-            for file in files {
-                file.delete(db, config).await?;
-            }
-        }
+        "delete" => delete_files(db, config, files).await?,
         "publish" => (),
         _ => unreachable!(),
     };
+    Ok(())
+}
+
+/// Delete multiple files
+async fn delete_files(
+    db: &DbConnection,
+    config: &Config,
+    files: Vec<File>,
+) -> Result<(), RestError> {
+    for file in files {
+        file.delete(db, config).await?;
+    }
     Ok(())
 }
 
@@ -99,19 +163,10 @@ fn find_files(
 
 /// Validate the file action request and return a namespace,
 /// if no file was given by id
-fn validate_action_request(request: &FileRequest, action: &str) -> Result<(), RestError> {
+fn validate_action_request(request: &FileRequest) -> Result<(), RestError> {
     if request.name.as_ref().map(|i| i.len()).unwrap_or_default() == 0 && request.file_id <= 0 {
         return Err(RestError::BadRequest);
     }
-
-    if request.all && action == "get" {
-        return Err(RestError::NotAllowed);
-    }
-
-    match action {
-        "delete" | "update" | "get" | "publish" => (),
-        _ => return Err(RestError::NotAllowed),
-    };
 
     Ok(())
 }

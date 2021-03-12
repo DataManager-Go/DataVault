@@ -127,7 +127,7 @@ pub async fn multipart_to_file(
         .await
         .map_err::<RestError, _>(|i| i.into())?;
 
-    let mut file = BufWriter::new(file);
+    let mut file_writer = BufWriter::new(&file);
 
     let mut size: i64 = 0;
     let mut mime_type: Option<String> = None;
@@ -142,7 +142,7 @@ pub async fn multipart_to_file(
         }
 
         // Write to file
-        file.write_all(&data).await?;
+        file_writer.write_all(&data).await?;
 
         // Update crc32 hash
         hasher.update(&data);
@@ -150,7 +150,8 @@ pub async fn multipart_to_file(
         size += data.len() as i64;
     }
 
-    file.flush().await?;
+    file_writer.flush().await?;
+    file.sync_data().await?;
 
     let crc = format!("{:x}", hasher.finalize());
 
