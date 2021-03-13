@@ -42,6 +42,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/user/login").to(handlers::user::ep_login))
             .service(web::resource("/files").to(handlers::list_file::ep_list_files))
             .service(web::resource("/download/file").to(handlers::file_action::ep_file_download))
+            .service(web::resource("/file/publish").to(handlers::file_action::ep_publish_file))
             .service(web::resource("/file/{action}").to(handlers::file_action::ep_file_action))
             .service(web::resource("/ping").to(handlers::ping::ep_ping))
             .service(

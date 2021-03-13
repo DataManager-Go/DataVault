@@ -38,6 +38,24 @@ pub struct UploadResponse {
     pub namespace: String,
 }
 
+impl From<File> for UploadResponse{
+    fn from(file: File) -> Self {
+        UploadResponse{
+            namespace: "".to_string(),
+            file_size: file.file_size,
+            checksum: file.checksum,
+            public_file_name: file.public_filename,
+            file_name: file.name,
+            file_id: file.id,
+        } 
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct BulkPublishResponse{
+    pub files: Vec<UploadResponse>
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct FileItemResponse {
     pub id: i32,

@@ -108,7 +108,7 @@ impl File {
     }
 
     /// Saves an existing file
-    pub fn save(&self, db: &DbConnection) -> Result<(), RestError> {
+    pub fn save(&self, db: &DbConnection) -> Result<(), diesel::result::Error> {
         use crate::schema::files::dsl::*;
         diesel::update(files)
             .set(self)
@@ -148,6 +148,28 @@ impl File {
         }
 
         query.load::<File>(db).map_err(|i| i.into())
+    }
+
+    /// Make a file public. If an empty name is provided, a random
+    /// one will be generated. The file must be mutable in order
+    /// to set the public_filename field to the new public name
+    pub fn publish(&mut self, db: &DbConnection, pub_name: &str) -> Result<(), RestError> {
+        // check whether the public name already exists
+        use crate::schema::files::dsl::*;
+        if let Ok(_) = files.filter(public_filename.eq(pub_name)).first::<File>(db){
+            return Err(RestError::AlreadyExists);
+        }
+
+        // Select proper public name
+        if pub_name.is_empty(){
+            self.public_filename = Some(crate::utils::random_string(25));
+        }else{
+            self.public_filename = Some(pub_name.to_string());
+        }
+
+        self.is_public = true;
+        self.save(db)?;
+        Ok(())
     }
 }
 

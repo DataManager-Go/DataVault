@@ -1,6 +1,4 @@
-use super::{
-    authentication::Authenticateduser, chunked::ChunkedReadFile, requests::file::FileRequest,
-};
+use super::{authentication::Authenticateduser, chunked::ChunkedReadFile, requests::file::FileRequest, response::{UploadResponse, BulkPublishResponse}};
 use crate::{
     config::Config,
     models::file::File,
@@ -23,7 +21,7 @@ pub async fn ep_file_action(
     validate_action_request(&request)?;
 
     match action.as_str() {
-        "delete" | "update" | "publish" => (),
+        "delete" | "update" => (),
         _ => return Err(RestError::NotAllowed),
     };
 
@@ -41,9 +39,38 @@ pub async fn ep_file_action(
         return Err(RestError::MultipleFilesMatch);
     }
 
-    run_action(&action, files, &pool.get()?, &config).await?;
+    run_action(&action, files, pool.get()?, &config, &request).await?;
 
     Ok(SUCCESS)
+}
+
+/// Endpoint for publishing files
+pub async fn ep_publish_file(
+    pool: web::Data<DbPool>,
+    request: Json<FileRequest>,
+    user: Authenticateduser,
+) -> Result<Json<BulkPublishResponse>, RestError> {
+    validate_action_request(&request)?;
+
+    // Select files
+    let pool_clone = pool.clone();
+    let request_clone = request.clone();
+    let user_clone = user.clone();
+    let files = web::block(move || find_files(&pool_clone, &request_clone, &user_clone)).await??;
+
+    if files.is_empty() {
+        return Err(RestError::NotFound);
+    }
+
+    if files.len() > 1 && !request.all {
+        return Err(RestError::MultipleFilesMatch);
+    }
+
+    let files = publish_files(&pool.get()?, files, request.public_name.as_ref().cloned().unwrap_or_default())?;
+
+    Ok(Json(BulkPublishResponse{
+        files,
+    }))
 }
 
 /// Endpoint for downloading a file
@@ -99,15 +126,14 @@ pub async fn ep_file_download(
 async fn run_action(
     action: &str,
     files: Vec<File>,
-    // request: &FileRequest,
-    db: &DbConnection,
+    db: DbConnection,
     config: &Config,
+    request: &FileRequest,
 ) -> Result<(), RestError> {
     // TODO implement functions
     match action {
         "update" => (),
-        "delete" => delete_files(db, config, files).await?,
-        "publish" => (),
+        "delete" => delete_files(&db, config, files).await?,
         _ => unreachable!(),
     };
     Ok(())
@@ -162,9 +188,34 @@ async fn delete_files(
     Ok(())
 }
 
+/// Publish multiple files
+fn publish_files(db: &DbConnection, files: Vec<File>, public_name: String)->Result<Vec<UploadResponse>, RestError>{
+    let mut publishes: Vec<UploadResponse> = Vec::new();
+
+    if files.len() == 1 && files[0].is_public {
+        return Err(RestError::AlreadyPublic);
+    }
+
+    if files.len() > 1 && !public_name.is_empty(){
+        return Err(RestError::AlreadyPublic);
+    }
+
+    for mut file in files.into_iter() {
+        if file.is_public{
+            continue;
+        }
+
+        file.publish(&db, &public_name)?;
+        publishes.push(file.into());
+    }
+
+    Ok(publishes)
+}
+
 /// Validate the file action request and return a namespace,
 /// if no file was given by id
 fn validate_action_request(request: &FileRequest) -> Result<(), RestError> {
+    // Either a files name or id has to be passed
     if request.name.as_ref().map(|i| i.len()).unwrap_or_default() == 0 && request.file_id <= 0 {
         return Err(RestError::BadRequest);
     }

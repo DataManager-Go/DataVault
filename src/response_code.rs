@@ -28,6 +28,9 @@ pub enum RestError {
     #[error("Already exitsting")]
     AlreadyExists,
 
+    #[error("Already public")]
+    AlreadyPublic,
+
     #[error("Bad request")]
     BadRequest,
 
@@ -83,6 +86,7 @@ impl ResponseError for RestError {
             Self::IllegalOperation => StatusCode::UNPROCESSABLE_ENTITY,
             Self::MultipleFilesMatch => StatusCode::UNPROCESSABLE_ENTITY,
             Self::NotAllowed => StatusCode::METHOD_NOT_ALLOWED,
+            Self::AlreadyPublic => StatusCode::CONFLICT,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
