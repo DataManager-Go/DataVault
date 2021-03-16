@@ -1,6 +1,7 @@
+use super::upload_request::FileAttributes;
+
 use serde::Deserialize;
 
-use super::upload_request::FileAttributes;
 #[derive(Clone, Debug, Deserialize)]
 pub struct FileList {
     #[serde(rename = "fid")]
@@ -19,7 +20,25 @@ pub struct FileRequest {
     pub name: Option<String>,
     #[serde(rename = "pubname")]
     pub public_name: Option<String>,
-    // updates: FileUpdateItem,
+    pub updates: Option<FileUpdateItem>,
     pub all: bool,
     pub attributes: FileAttributes,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct FileUpdateItem {
+    #[serde(rename = "ispublic")]
+    pub is_public: Option<String>,
+    #[serde(rename = "name")]
+    pub new_name: Option<String>,
+    #[serde(rename = "namespace")]
+    pub new_namespace: Option<String>,
+    #[serde(rename = "rem_tags")]
+    pub remove_tags: Option<Vec<String>>,
+    #[serde(rename = "rem_groups")]
+    pub remove_groups: Option<Vec<String>>,
+    #[serde(rename = "add_tags")]
+    pub add_tags: Option<Vec<String>>,
+    #[serde(rename = "add_groups")]
+    pub add_groups: Option<Vec<String>>,
 }

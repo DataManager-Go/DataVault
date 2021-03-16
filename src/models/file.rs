@@ -117,6 +117,11 @@ impl File {
         Ok(())
     }
 
+    /// Get the namespace of the file
+    pub fn namespace(&self, db: &DbConnection) -> Result<Namespace, RestError> {
+        Ok(Namespace::find_by_id(db, self.namespace_id)?)
+    }
+
     /// Delete the file
     pub async fn delete(&self, db: &DbConnection, config: &Config) -> Result<(), RestError> {
         // Delete local file
@@ -156,14 +161,14 @@ impl File {
     pub fn publish(&mut self, db: &DbConnection, pub_name: &str) -> Result<(), RestError> {
         // check whether the public name already exists
         use crate::schema::files::dsl::*;
-        if let Ok(_) = files.filter(public_filename.eq(pub_name)).first::<File>(db){
+        if let Ok(_) = files.filter(public_filename.eq(pub_name)).first::<File>(db) {
             return Err(RestError::AlreadyExists);
         }
 
         // Select proper public name
-        if pub_name.is_empty(){
+        if pub_name.is_empty() {
             self.public_filename = Some(crate::utils::random_string(25));
-        }else{
+        } else {
             self.public_filename = Some(pub_name.to_string());
         }
 

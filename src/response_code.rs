@@ -22,6 +22,9 @@ pub enum RestError {
     #[error("Not found")]
     NotFound,
 
+    #[error("File not public")]
+    NotPublic,
+
     #[error("The performed action is forbidden")]
     Forbidden,
 
@@ -69,6 +72,7 @@ impl RestError {
             Self::IllegalOperation => "IllegalOperation".to_string(),
             Self::MultipleFilesMatch => "MultipleFilesMatch".to_string(),
             Self::NotAllowed => "NotAllowed".to_string(),
+            Self::NotPublic => "NotPublic".to_string(),
             _ => "BadRequest".to_string(),
         }
     }
@@ -87,6 +91,7 @@ impl ResponseError for RestError {
             Self::MultipleFilesMatch => StatusCode::UNPROCESSABLE_ENTITY,
             Self::NotAllowed => StatusCode::METHOD_NOT_ALLOWED,
             Self::AlreadyPublic => StatusCode::CONFLICT,
+            Self::NotPublic => StatusCode::CONFLICT,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

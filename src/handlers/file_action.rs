@@ -1,8 +1,13 @@
-use super::{authentication::Authenticateduser, chunked::ChunkedReadFile, requests::file::FileRequest, response::{UploadResponse, BulkPublishResponse}};
+use super::{
+    authentication::Authenticateduser,
+    chunked::ChunkedReadFile,
+    requests::file::{FileRequest, FileUpdateItem},
+    response::{BulkPublishResponse, IDsResponse, UploadResponse},
+};
 use crate::{
     config::Config,
-    models::file::File,
-    response_code::{RestError, Success, SUCCESS},
+    models::{file::File, namespace::Namespace},
+    response_code::RestError,
     DbConnection, DbPool,
 };
 
@@ -17,11 +22,16 @@ pub async fn ep_file_action(
     action: web::Path<String>,
     request: Json<FileRequest>,
     user: Authenticateduser,
-) -> Result<Json<Success>, RestError> {
+) -> Result<Json<IDsResponse>, RestError> {
     validate_action_request(&request)?;
 
     match action.as_str() {
-        "delete" | "update" => (),
+        "delete" => (),
+        "update" => {
+            if request.updates.is_none() {
+                return Err(RestError::BadRequest);
+            }
+        }
         _ => return Err(RestError::NotAllowed),
     };
 
@@ -39,9 +49,9 @@ pub async fn ep_file_action(
         return Err(RestError::MultipleFilesMatch);
     }
 
-    run_action(&action, files, pool.get()?, &config, &request).await?;
+    let fids_changed = run_action(&action, files, pool.get()?, &config, &request, &user).await?;
 
-    Ok(SUCCESS)
+    Ok(Json(IDsResponse { ids: fids_changed }))
 }
 
 /// Endpoint for publishing files
@@ -66,11 +76,13 @@ pub async fn ep_publish_file(
         return Err(RestError::MultipleFilesMatch);
     }
 
-    let files = publish_files(&pool.get()?, files, request.public_name.as_ref().cloned().unwrap_or_default())?;
-
-    Ok(Json(BulkPublishResponse{
+    let files = publish_files(
+        &pool.get()?,
         files,
-    }))
+        request.public_name.as_ref().cloned().unwrap_or_default(),
+    )?;
+
+    Ok(Json(BulkPublishResponse { files }))
 }
 
 /// Endpoint for downloading a file
@@ -129,14 +141,13 @@ async fn run_action(
     db: DbConnection,
     config: &Config,
     request: &FileRequest,
-) -> Result<(), RestError> {
-    // TODO implement functions
-    match action {
-        "update" => (),
+    user: &Authenticateduser,
+) -> Result<Vec<i32>, RestError> {
+    Ok(match action {
+        "update" => update_files(db, files, request.updates.clone().unwrap(), user)?,
         "delete" => delete_files(&db, config, files).await?,
         _ => unreachable!(),
-    };
-    Ok(())
+    })
 }
 
 /// Get the files to update based on
@@ -181,27 +192,31 @@ async fn delete_files(
     db: &DbConnection,
     config: &Config,
     files: Vec<File>,
-) -> Result<(), RestError> {
-    for file in files {
+) -> Result<Vec<i32>, RestError> {
+    for file in files.iter() {
         file.delete(db, config).await?;
     }
-    Ok(())
+    Ok(files.iter().map(|i| i.id).collect())
 }
 
 /// Publish multiple files
-fn publish_files(db: &DbConnection, files: Vec<File>, public_name: String)->Result<Vec<UploadResponse>, RestError>{
+fn publish_files(
+    db: &DbConnection,
+    files: Vec<File>,
+    public_name: String,
+) -> Result<Vec<UploadResponse>, RestError> {
     let mut publishes: Vec<UploadResponse> = Vec::new();
 
     if files.len() == 1 && files[0].is_public {
         return Err(RestError::AlreadyPublic);
     }
 
-    if files.len() > 1 && !public_name.is_empty(){
+    if files.len() > 1 && !public_name.is_empty() {
         return Err(RestError::AlreadyPublic);
     }
 
     for mut file in files.into_iter() {
-        if file.is_public{
+        if file.is_public {
             continue;
         }
 
@@ -210,6 +225,74 @@ fn publish_files(db: &DbConnection, files: Vec<File>, public_name: String)->Resu
     }
 
     Ok(publishes)
+}
+
+/// Update given files and returns all
+/// fileids of files which were modified
+fn update_files(
+    db: DbConnection,
+    files: Vec<File>,
+    update: FileUpdateItem,
+    user: &Authenticateduser,
+) -> Result<Vec<i32>, RestError> {
+    Ok(files
+        .into_iter()
+        .map(|i| update_file(&db, &i, &update, user).map(|j| if j { i.id } else { 0 }))
+        .collect::<Result<Vec<i32>, RestError>>()?
+        .into_iter()
+        .filter(|i| *i > 0)
+        .collect())
+}
+
+/// Update a single File and return
+/// whether it was modified or not
+fn update_file(
+    db: &DbConnection,
+    file: &File,
+    update: &FileUpdateItem,
+    user: &Authenticateduser,
+) -> Result<bool, RestError> {
+    let mut did_update = false;
+    let mut file = file.clone();
+
+    // Update namespace
+    if let Some(ref new_ns) = update.new_namespace {
+        let ns = Namespace::find_by_name(db, &new_ns, user.user.id)?.ok_or(RestError::NotFound)?;
+        if ns.id != file.namespace_id {
+            // Update ns
+            file.namespace_id = ns.id;
+            did_update = true;
+        }
+    }
+
+    // Update filename
+    if let Some(ref new_name) = update.new_name {
+        if !new_name.is_empty() {
+            file.name = new_name.clone();
+            did_update = true;
+        }
+    }
+
+    // Publish / Unpublish file
+    if let Some(ref public) = update.is_public {
+        if !public.is_empty() {
+            if file.public_filename.is_none() {
+                // File needs to be shared first
+                return Err(RestError::NotPublic);
+            }
+
+            file.is_public = public.parse().map_err(|_| RestError::BadRequest)?;
+            did_update = true;
+        }
+    }
+
+    // TODO add/remove attributes
+
+    if did_update {
+        file.save(db)?;
+    }
+
+    Ok(did_update)
 }
 
 /// Validate the file action request and return a namespace,
