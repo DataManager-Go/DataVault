@@ -1,4 +1,5 @@
 use crate::{
+    config::Config,
     models::user::User,
     response_code::{self, RestError},
 };
@@ -6,6 +7,8 @@ use crate::{schema::*, DbConnection};
 use diesel::prelude::*;
 use diesel::result::Error::NotFound;
 use serde::Serialize;
+
+use super::file::File;
 
 /// A namespace represents a abstraction between multiple files.
 /// Each namespace, identified by its per user unique name can
@@ -99,7 +102,7 @@ impl Namespace {
     }
 
     /// Delete a namespace
-    pub fn delete(&self, db: &DbConnection) -> Result<(), RestError> {
+    pub fn delete(&self, db: &DbConnection, config: &Config) -> Result<(), RestError> {
         use crate::schema::namespaces::dsl::*;
 
         // Don't allow deleting 'default' namespace
@@ -107,13 +110,23 @@ impl Namespace {
             return Err(RestError::IllegalOperation);
         }
 
-        // TODO delete namespaces files, tags and groups here as well
+        // Delete all namespace assigned files
+        for file in self.files(db)? {
+            file.delete(db, config)?;
+        }
 
+        // Delet namespace from database
         diesel::delete(namespaces)
             .filter(id.eq(self.id))
             .execute(db)?;
 
         Ok(())
+    }
+
+    /// Get a list of all files in the current namespace
+    pub fn files(&self, db: &DbConnection) -> Result<Vec<File>, diesel::result::Error> {
+        use crate::schema::files::dsl::*;
+        files.filter(namespace_id.eq(self.id)).load::<File>(db)
     }
 
     /// Rename a namespace

@@ -5,9 +5,9 @@ use crate::{
     models::{namespace::Namespace, user::User},
     DbConnection,
 };
-use async_std::{fs, path::Path};
 use chrono::prelude::*;
 use diesel::{dsl::count_star, prelude::*};
+use std::{fs, path::Path};
 
 #[derive(Identifiable, Queryable, Associations, Debug, AsChangeset, Clone)]
 #[belongs_to(User)]
@@ -123,10 +123,11 @@ impl File {
     }
 
     /// Delete the file
-    pub async fn delete(&self, db: &DbConnection, config: &Config) -> Result<(), RestError> {
-        // Delete local file
+    pub fn delete(&self, db: &DbConnection, config: &Config) -> Result<(), RestError> {
         // TODO shredder file
-        fs::remove_file(Path::new(&config.server.file_output_path).join(&self.local_name)).await?;
+
+        // Delete local file
+        fs::remove_file(Path::new(&config.server.file_output_path).join(&self.local_name))?;
 
         // rm from DB
         diesel::delete(self).execute(db)?;

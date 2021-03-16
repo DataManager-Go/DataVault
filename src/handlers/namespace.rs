@@ -1,5 +1,6 @@
 use super::{authentication::Authenticateduser, requests::NamespaceRequest, response::VecResponse};
 use crate::{
+    config::Config,
     models::namespace::{self, Namespace},
     response_code::{RestError, Success, SUCCESS},
     DbPool,
@@ -49,6 +50,7 @@ pub async fn ep_list_namespace(
 /// Endpoint for deleting a namespace
 pub async fn ep_delete_namespace(
     pool: web::Data<DbPool>,
+    config: web::Data<Config>,
     user: Authenticateduser,
     req: web::Json<NamespaceRequest>,
 ) -> Result<Json<Success>, RestError> {
@@ -61,7 +63,7 @@ pub async fn ep_delete_namespace(
 
     web::block(move || -> Result<(), RestError> {
         if let Some(ns) = Namespace::find_by_name(&db, &req.name, user.user.id)? {
-            ns.delete(&db)?;
+            ns.delete(&db, &config)?;
             Ok(())
         } else {
             Err(RestError::NotFound)
@@ -88,7 +90,7 @@ pub async fn ep_rename_namespace(
         return Err(RestError::IllegalOperation);
     }
 
-    if req.name == new_name{
+    if req.name == new_name {
         return Err(RestError::BadRequest);
     }
 

@@ -145,7 +145,7 @@ async fn run_action(
 ) -> Result<Vec<i32>, RestError> {
     Ok(match action {
         "update" => update_files(db, files, request.updates.clone().unwrap(), user)?,
-        "delete" => delete_files(&db, config, files).await?,
+        "delete" => delete_files(db, config.to_owned(), files).await?,
         _ => unreachable!(),
     })
 }
@@ -189,14 +189,18 @@ fn find_files(
 
 /// Delete multiple files
 async fn delete_files(
-    db: &DbConnection,
-    config: &Config,
+    db: DbConnection,
+    config: Config,
     files: Vec<File>,
 ) -> Result<Vec<i32>, RestError> {
-    for file in files.iter() {
-        file.delete(db, config).await?;
-    }
-    Ok(files.iter().map(|i| i.id).collect())
+    web::block(move || {
+        for file in files.iter() {
+            file.delete(&db, &config)?;
+        }
+
+        Ok(files.iter().map(|i| i.id).collect())
+    })
+    .await?
 }
 
 /// Publish multiple files
