@@ -64,21 +64,7 @@ pub async fn ep_upload(
         }
     };
 
-    // Handle attributes
-
-    if let Some(attributes) = upload_request.attributes {
-        if let Some(tags) = attributes.tags {
-            let tags = NewAttribute::find_and_create(&db, &tags, Tag, user.user.id, namespace.id)?;
-            file.add_attributes(&tags)?;
-        }
-
-        if let Some(groups) = attributes.groups {
-            let groups =
-                NewAttribute::find_and_create(&db, &groups, Group, user.user.id, namespace.id)?;
-
-            file.add_attributes(&groups)?;
-        }
-    }
+    handle_attributes(&db, &upload_request, &file, &user, &namespace)?;
 
     Ok(Json(UploadResponse {
         file_size: size,
@@ -132,6 +118,37 @@ fn select_file(
     }
 
     Ok((file, target_namespace))
+}
+
+/// Creates and adds requested attributes
+/// to the uploaded file
+fn handle_attributes(
+    db: &DbConnection,
+    upload_request: &UploadRequest,
+    file: &File,
+    user: &Authenticateduser,
+    namespace: &Namespace,
+) -> Result<(), RestError> {
+    if let Some(ref attributes) = upload_request.attributes {
+        // Get and create tags
+        let tags = if let Some(ref tags) = attributes.tags {
+            NewAttribute::find_and_create(&db, &tags, Tag, user.user.id, namespace.id)?
+        } else {
+            vec![]
+        };
+
+        // Get and create groups
+        let groups = if let Some(ref groups) = attributes.groups {
+            NewAttribute::find_and_create(&db, &groups, Group, user.user.id, namespace.id)?
+        } else {
+            vec![]
+        };
+
+        // concat vectors and add to file
+        file.add_attributes(&db, &[tags, groups].concat())?;
+    }
+
+    Ok(())
 }
 
 /// Write a multipart to a given file. Returns

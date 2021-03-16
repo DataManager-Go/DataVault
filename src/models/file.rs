@@ -180,8 +180,16 @@ impl File {
         Ok(())
     }
 
+    fn get_attribute_ids(&self, db: &DbConnection) -> Result<Vec<i32>, RestError> {
+        Ok(vec![])
+    }
+
     /// Add attributes to file
-    pub fn add_attributes(&self, attributes: &Vec<Attribute>) -> Result<(), RestError> {
+    pub fn add_attributes(
+        &self,
+        db: &DbConnection,
+        attributes: &Vec<Attribute>,
+    ) -> Result<(), RestError> {
         // TODO actually add the attribute references to the file
         Ok(())
     }
