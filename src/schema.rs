@@ -1,4 +1,23 @@
 table! {
+    attributes (id) {
+        id -> Int4,
+        #[sql_name = "type"]
+        type_ -> Int2,
+        name -> Text,
+        namespace_id -> Int4,
+        user_id -> Int4,
+    }
+}
+
+table! {
+    file_attributes (id) {
+        id -> Int4,
+        file_id -> Int4,
+        attribute_id -> Int4,
+    }
+}
+
+table! {
     files (id) {
         id -> Int4,
         name -> Text,
@@ -42,11 +61,17 @@ table! {
     }
 }
 
+joinable!(attributes -> namespaces (namespace_id));
+joinable!(attributes -> users (user_id));
+joinable!(file_attributes -> attributes (attribute_id));
+joinable!(file_attributes -> files (file_id));
 joinable!(files -> users (user_id));
 joinable!(login_sessions -> users (user_id));
 joinable!(namespaces -> users (user_id));
 
 allow_tables_to_appear_in_same_query!(
+    attributes,
+    file_attributes,
     files,
     login_sessions,
     namespaces,

@@ -4,8 +4,11 @@ use super::{
 };
 use crate::{
     config::Config,
-    models::file::{File, NewFile},
-    models::namespace::Namespace,
+    models::{
+        attribute,
+        file::{File, NewFile},
+        namespace::Namespace,
+    },
     response_code::RestError,
     DbConnection, DbPool,
 };
@@ -16,6 +19,10 @@ use actix_web::{
     HttpRequest,
 };
 use async_std::{fs, io::prelude::*, path::Path};
+use attribute::{
+    AttributeType::{Group, Tag},
+    NewAttribute,
+};
 use futures::StreamExt;
 use lazy_static::__Deref;
 
@@ -30,14 +37,14 @@ pub async fn ep_upload(
 ) -> Result<Json<UploadResponse>, RestError> {
     upload_request.validate(&user)?;
 
+    // Pick correct file
     let db = pool.get()?;
     let request_cloned = upload_request.clone();
     let user_cloned = user.clone();
     let (mut file, namespace) =
         web::block(move || select_file(&request_cloned, &db, user_cloned)).await??;
 
-    // TODO set groups and tags
-
+    // Handle file upload
     let (crc, size, mime_type) =
         save_to_file(payload, config.deref(), &file.local_name, request).await?;
 
@@ -45,13 +52,33 @@ pub async fn ep_upload(
     file.file_size = size;
     file.file_type = mime_type;
 
-    let id = if file.id == 0 {
-        let new_file: NewFile = file.clone().into();
-        new_file.create(&pool.get()?)?
-    } else {
-        file.save(&pool.get()?)?;
-        file.id
+    // Ensure correct file is in DB somehow
+    let db = pool.get()?;
+    let id = {
+        if file.id == 0 {
+            let new_file: NewFile = file.clone().into();
+            new_file.create(&db)?
+        } else {
+            file.save(&db)?;
+            file.id
+        }
     };
+
+    // Handle attributes
+
+    if let Some(attributes) = upload_request.attributes {
+        if let Some(tags) = attributes.tags {
+            let tags = NewAttribute::find_and_create(&db, &tags, Tag, user.user.id, namespace.id)?;
+            file.add_attributes(&tags)?;
+        }
+
+        if let Some(groups) = attributes.groups {
+            let groups =
+                NewAttribute::find_and_create(&db, &groups, Group, user.user.id, namespace.id)?;
+
+            file.add_attributes(&groups)?;
+        }
+    }
 
     Ok(Json(UploadResponse {
         file_size: size,

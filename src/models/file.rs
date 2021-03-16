@@ -9,6 +9,8 @@ use chrono::prelude::*;
 use diesel::{dsl::count_star, prelude::*};
 use std::{fs, path::Path};
 
+use super::attribute::Attribute;
+
 #[derive(Identifiable, Queryable, Associations, Debug, AsChangeset, Clone)]
 #[belongs_to(User)]
 #[changeset_options(treat_none_as_null = "true")]
@@ -175,6 +177,12 @@ impl File {
 
         self.is_public = true;
         self.save(db)?;
+        Ok(())
+    }
+
+    /// Add attributes to file
+    pub fn add_attributes(&self, attributes: &Vec<Attribute>) -> Result<(), RestError> {
+        // TODO actually add the attribute references to the file
         Ok(())
     }
 }
