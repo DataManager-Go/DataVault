@@ -101,7 +101,7 @@ impl NewAttribute {
     /// Create all missing attributes of type type_
     pub fn find_and_create(
         db: &DbConnection,
-        items: &Vec<String>,
+        items: &[String],
         type_: AttributeType,
         user_id: i32,
         namespace_id: i32,

@@ -164,7 +164,11 @@ impl File {
     pub fn publish(&mut self, db: &DbConnection, pub_name: &str) -> Result<(), RestError> {
         // check whether the public name already exists
         use crate::schema::files::dsl::*;
-        if let Ok(_) = files.filter(public_filename.eq(pub_name)).first::<File>(db) {
+        if files
+            .filter(public_filename.eq(pub_name))
+            .first::<File>(db)
+            .is_ok()
+        {
             return Err(RestError::AlreadyExists);
         }
 
@@ -188,7 +192,7 @@ impl File {
     pub fn add_attributes(
         &self,
         db: &DbConnection,
-        attributes: &Vec<Attribute>,
+        attributes: &[Attribute],
     ) -> Result<(), RestError> {
         // TODO actually add the attribute references to the file
         Ok(())
