@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+pub mod attributes;
 pub mod authentication;
 mod chunked;
 pub mod file_action;

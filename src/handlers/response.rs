@@ -94,6 +94,7 @@ impl From<File> for FileItemResponse {
             attributes: FileAttributes {
                 groups: None,
                 tags: None,
+                // TODO find a way to also return the namespace
                 namespace: "TODO".to_string(),
             },
         }

@@ -45,8 +45,6 @@ pub async fn ep_upload(
     file.file_size = size;
     file.file_type = mime_type;
 
-    debug!("{:?}", file);
-
     let id = if file.id == 0 {
         let new_file: NewFile = file.clone().into();
         new_file.create(&pool.get()?)?
@@ -93,12 +91,12 @@ fn select_file(
 
     if let Some(id) = upload_request.replace_file_by_id {
         // Replace file by id
-        // TODO merge into one request
+        // TODO merge into one db call
 
         file = File::find_by_id(db, id, user.user.id)?;
 
         // Set target_namespace to file's ns
-        target_namespace = Namespace::find_by_id(db, file.namespace_id)?;
+        target_namespace = file.namespace(db)?;
     } else if !replace_file {
         // Create a new file
         file = upload_request.clone().into();
