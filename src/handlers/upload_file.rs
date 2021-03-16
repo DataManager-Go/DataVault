@@ -54,7 +54,7 @@ pub async fn ep_upload(
 
     // Ensure correct file is in DB somehow
     let db = pool.get()?;
-    let id = {
+    file.id = {
         if file.id == 0 {
             let new_file: NewFile = file.clone().into();
             new_file.create(&db)?
@@ -70,7 +70,7 @@ pub async fn ep_upload(
         file_size: size,
         checksum: crc,
         namespace: namespace.name,
-        file_id: id,
+        file_id: file.id,
         file_name: file.name,
         public_file_name: None,
     }))
@@ -145,7 +145,7 @@ fn handle_attributes(
         };
 
         // concat vectors and add to file
-        file.add_attributes(&db, &[tags, groups].concat())?;
+        file.add_attributes(&db, [tags, groups].concat())?;
     }
 
     Ok(())

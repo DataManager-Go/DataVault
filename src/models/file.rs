@@ -1,9 +1,12 @@
-use crate::response_code::{diesel_option, RestError};
 use crate::schema::files;
 use crate::{
     config::Config,
     models::{namespace::Namespace, user::User},
     DbConnection,
+};
+use crate::{
+    response_code::{diesel_option, RestError},
+    utils::random_string,
 };
 use chrono::prelude::*;
 use diesel::{dsl::count_star, prelude::*};
@@ -128,6 +131,10 @@ impl File {
     pub fn delete(&self, db: &DbConnection, config: &Config) -> Result<(), RestError> {
         // TODO shredder file
 
+        // We need to delete associations first
+        // otherwise db relations errors will occur
+        attributes::delete_associations(db, self.id)?;
+
         // Delete local file
         fs::remove_file(Path::new(&config.server.file_output_path).join(&self.local_name))?;
 
@@ -173,28 +180,36 @@ impl File {
         }
 
         // Select proper public name
-        if pub_name.is_empty() {
-            self.public_filename = Some(crate::utils::random_string(25));
+        self.public_filename = if pub_name.is_empty() {
+            Some(random_string(25))
         } else {
-            self.public_filename = Some(pub_name.to_string());
-        }
+            Some(pub_name.to_string())
+        };
 
         self.is_public = true;
         self.save(db)?;
         Ok(())
     }
 
-    fn get_attribute_ids(&self, db: &DbConnection) -> Result<Vec<i32>, RestError> {
-        Ok(vec![])
-    }
-
-    /// Add attributes to file
+    /// Add a set of attributes to file
     pub fn add_attributes(
         &self,
         db: &DbConnection,
-        attributes: &[Attribute],
+        attributes: Vec<Attribute>,
     ) -> Result<(), RestError> {
-        // TODO actually add the attribute references to the file
+        let existing_ids = attributes::get_file_attribute_ids(db, self.id)?;
+
+        let addition_needed: Vec<Attribute> = attributes
+            .into_iter()
+            .filter(|i| !existing_ids.contains(&i.id))
+            .collect();
+
+        if addition_needed.is_empty() {
+            return Ok(());
+        }
+
+        attributes::add_atttributes(db, self.id, &addition_needed)?;
+
         Ok(())
     }
 }
@@ -213,5 +228,75 @@ impl Into<NewFile> for File {
             encryption: self.encryption,
             checksum: self.checksum,
         }
+    }
+}
+
+/// Attribute cross join table logic m:m
+pub mod attributes {
+    use crate::models::file::File;
+    use crate::schema::*;
+    use crate::{models::attribute::Attribute, response_code::RestError, DbConnection};
+    use diesel::prelude::*;
+
+    #[derive(Identifiable, Queryable, Associations, Debug, AsChangeset, Clone)]
+    #[belongs_to(Attribute)]
+    #[belongs_to(File)]
+    #[changeset_options(treat_none_as_null = "true")]
+    pub struct FileAttribute {
+        pub id: i32,
+        pub file_id: i32,
+        pub attribute_id: i32,
+    }
+
+    #[derive(Insertable, Default, Debug, Copy, Clone)]
+    #[table_name = "file_attributes"]
+    pub struct NewFileAttribute {
+        pub file_id: i32,
+        pub attribute_id: i32,
+    }
+
+    /// Get the attribute_ids associated to a file id
+    pub fn get_file_attribute_ids(db: &DbConnection, fid: i32) -> Result<Vec<i32>, RestError> {
+        use crate::schema::file_attributes::dsl::*;
+
+        Ok(file_attributes
+            .filter(file_id.eq(fid))
+            .select(attribute_id)
+            .load::<i32>(db)?)
+    }
+
+    /// Add attributes (references) for a file
+    pub fn add_atttributes(
+        db: &DbConnection,
+        fid: i32,
+        attributes: &[Attribute],
+    ) -> Result<(), RestError> {
+        use crate::schema::file_attributes::dsl::*;
+
+        // Create vec of NewFileAttribute which allow a bulk insert
+        let to_insert: Vec<NewFileAttribute> = attributes
+            .iter()
+            .map(|i| NewFileAttribute {
+                file_id: fid,
+                attribute_id: i.id,
+            })
+            .collect();
+
+        diesel::insert_into(file_attributes)
+            .values(to_insert)
+            .execute(db)?;
+
+        Ok(())
+    }
+
+    /// Delete all attribute associations for a file
+    pub fn delete_associations(db: &DbConnection, fid: i32) -> Result<(), RestError> {
+        use crate::schema::file_attributes::dsl::*;
+
+        diesel::delete(file_attributes)
+            .filter(file_id.eq(fid))
+            .execute(db)?;
+
+        Ok(())
     }
 }
