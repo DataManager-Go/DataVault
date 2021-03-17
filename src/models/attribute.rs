@@ -155,6 +155,15 @@ impl NewAttribute {
     }
 }
 
+/// Delete an attribute by its ID
+pub fn delete(db: &DbConnection, attr_id: i32) -> Result<(), DieselErr> {
+    use crate::schema::attributes::dsl::*;
+    diesel::delete(attributes)
+        .filter(id.eq(attr_id))
+        .execute(db)?;
+    Ok(())
+}
+
 impl<DB: Backend> ToSql<SmallInt, DB> for AttributeType
 where
     i16: ToSql<SmallInt, DB>,

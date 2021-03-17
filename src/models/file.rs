@@ -253,7 +253,7 @@ pub mod attributes {
     use crate::models::file::File;
     use crate::schema::*;
     use crate::{models::attribute::Attribute, response_code::RestError, DbConnection};
-    use diesel::prelude::*;
+    use diesel::{dsl::exists, prelude::*};
 
     #[derive(Identifiable, Queryable, Associations, Debug, AsChangeset, Clone)]
     #[belongs_to(Attribute)]
@@ -309,9 +309,16 @@ pub mod attributes {
     /// Delete a single association between a file and a tag
     pub fn delete_association(db: &DbConnection, fid: i32, aid: i32) -> Result<(), RestError> {
         use crate::schema::file_attributes::dsl::*;
+
         diesel::delete(file_attributes)
             .filter(file_id.eq(fid).and(attribute_id.eq(aid)))
             .execute(db)?;
+
+        if !diesel::select(exists(file_attributes.filter(attribute_id.eq(aid)))).get_result(db)? {
+            // Delete unused attribute
+            super::super::attribute::delete(db, aid)?;
+        }
+
         Ok(())
     }
 

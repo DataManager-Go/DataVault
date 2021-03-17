@@ -318,14 +318,14 @@ fn update_file(
 
     let remove_tags = if let Some(ref remove_tags) = update.remove_tags {
         did_update = true;
-        NewAttribute::find_and_create(&db, &remove_tags, Tag, user.user.id, file.namespace_id)?
+        NewAttribute::find_by_name(&db, &remove_tags, Tag, user.user.id, file.namespace_id)?
     } else {
         vec![]
     };
 
     let remove_groups = if let Some(ref remove_groups) = update.remove_groups {
         did_update = true;
-        NewAttribute::find_and_create(&db, &remove_groups, Group, user.user.id, file.namespace_id)?
+        NewAttribute::find_by_name(&db, &remove_groups, Group, user.user.id, file.namespace_id)?
     } else {
         vec![]
     };
