@@ -190,7 +190,7 @@ fn find_files(
             ..File::default()
         };
 
-        search_file.search(&pool.get()?, false)?
+        search_file.find(&pool.get()?, false)?
     })
 }
 

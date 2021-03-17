@@ -1,15 +1,17 @@
-use crate::schema::files;
 use crate::{
     config::Config,
     models::{namespace::Namespace, user::User},
     DbConnection,
 };
+use crate::{handlers::requests::file::FileList, schema::files};
 use crate::{
     response_code::{diesel_option, RestError},
     utils::random_string,
 };
 use chrono::prelude::*;
-use diesel::{dsl::count_star, prelude::*, result::Error as DieselErr};
+use diesel::{
+    dsl::count_star, pg::Pg, prelude::*, result::Error as DieselErr, PgTextExpressionMethods,
+};
 use std::{fs, path::Path};
 
 use super::attribute::Attribute;
@@ -159,7 +161,7 @@ impl File {
     }
 
     /// Search for a file. Unset values are ignored
-    pub fn search(&self, db: &DbConnection, ignore_ns: bool) -> Result<Vec<File>, RestError> {
+    pub fn find(&self, db: &DbConnection, ignore_ns: bool) -> Result<Vec<File>, RestError> {
         use crate::schema::files::dsl::*;
         let mut query = {
             if self.id > 0 {
@@ -243,6 +245,39 @@ impl File {
         }
 
         Ok(())
+    }
+
+    /// Search for a file
+    pub fn search(
+        db: &DbConnection,
+        filter: &FileList,
+        user: User,
+    ) -> Result<Vec<(File, Namespace)>, RestError> {
+        use crate::schema::files::dsl::*;
+
+        let mut query = files
+            // Join namespaces
+            .inner_join(crate::schema::namespaces::table)
+            // Always filter by user_id
+            .filter(user_id.eq(user.id))
+            .into_boxed::<Pg>();
+
+        // Apply namespace filter
+        if !filter.all_namespaces {
+            let ns = Namespace::find_by_name(db, &filter.attributes.namespace, user.id)?
+                .ok_or(RestError::NotFound)?;
+
+            query = query.filter(namespace_id.eq(ns.id));
+        }
+
+        // Apply name filter
+        if !filter.name.is_empty() {
+            query = query.filter(name.ilike(&filter.name));
+        }
+
+        // TODO attribute filter
+
+        Ok(query.load::<(File, Namespace)>(db)?)
     }
 }
 

@@ -9,7 +9,6 @@ pub struct FileList {
     pub name: String,
     #[serde(rename = "allns")]
     pub all_namespaces: bool,
-    pub order: Option<String>,
     pub attributes: FileAttributes,
 }
 
