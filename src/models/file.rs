@@ -314,21 +314,41 @@ pub mod attributes {
             .filter(file_id.eq(fid).and(attribute_id.eq(aid)))
             .execute(db)?;
 
-        if !diesel::select(exists(file_attributes.filter(attribute_id.eq(aid)))).get_result(db)? {
-            // Delete unused attribute
+        // Delete unused attribute
+        if !is_attribute_used(db, aid)? {
             super::super::attribute::delete(db, aid)?;
         }
 
         Ok(())
     }
 
+    /// Return true if an attribute has relations
+    fn is_attribute_used(db: &DbConnection, aid: i32) -> Result<bool, RestError> {
+        use crate::schema::file_attributes::dsl::*;
+        Ok(diesel::select(exists(file_attributes.filter(attribute_id.eq(aid)))).get_result(db)?)
+    }
+
     /// Delete all attribute associations for a file
     pub fn delete_associations(db: &DbConnection, fid: i32) -> Result<(), RestError> {
         use crate::schema::file_attributes::dsl::*;
 
+        // Get all attributes of the given file
+        let attributes = get_file_attribute_ids(db, fid)?;
+
+        if attributes.is_empty() {
+            return Ok(());
+        }
+
         diesel::delete(file_attributes)
             .filter(file_id.eq(fid))
             .execute(db)?;
+
+        // Delete unused attributes
+        for attribute in attributes {
+            if !is_attribute_used(db, attribute)? {
+                super::super::attribute::delete(db, attribute)?;
+            }
+        }
 
         Ok(())
     }
