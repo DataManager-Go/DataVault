@@ -1,3 +1,4 @@
+pub mod attribute;
 pub mod file;
 pub mod upload_request;
 

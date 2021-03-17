@@ -1,6 +1,23 @@
 use super::{authentication::Authenticateduser, requests::upload_request::FileAttributes};
 use crate::{models::namespace::Namespace, response_code::RestError, DbConnection};
 
+/// find a namespace by its name
+pub fn retrieve_namespace_by_name(
+    db: &DbConnection,
+    namespace: &str,
+    user: &Authenticateduser,
+) -> Result<Namespace, RestError> {
+    retrieve_namespace(
+        db,
+        &Some(&FileAttributes {
+            namespace: namespace.to_owned(),
+            groups: None,
+            tags: None,
+        }),
+        user,
+    )
+}
+
 /// Try to get the desired namespace. Use the precached
 /// namespace if possible and desired
 pub fn retrieve_namespace(

@@ -44,6 +44,10 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/download/file").to(handlers::file_action::ep_file_download))
             .service(web::resource("/file/publish").to(handlers::file_action::ep_publish_file))
             .service(web::resource("/file/{action}").to(handlers::file_action::ep_file_action))
+            .service(
+                web::resource("/attribute/{type}/{action}")
+                    .to(handlers::attributes::ep_attribute_action),
+            )
             .service(web::resource("/ping").to(handlers::ping::ep_ping))
             .service(
                 web::resource("/namespace/create").to(handlers::namespace::ep_create_namespace),
