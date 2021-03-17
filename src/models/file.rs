@@ -191,14 +191,17 @@ impl File {
         Ok(())
     }
 
-    /// Add a set of attributes to file
+    /// Add a set of attributes to the file.
+    /// Skips already added attributes
     pub fn add_attributes(
         &self,
         db: &DbConnection,
         attributes: Vec<Attribute>,
     ) -> Result<(), RestError> {
+        // Get list of already existing attributes
         let existing_ids = attributes::get_file_attribute_ids(db, self.id)?;
 
+        // Create vec with not yet added attributes
         let addition_needed: Vec<Attribute> = attributes
             .into_iter()
             .filter(|i| !existing_ids.contains(&i.id))
@@ -209,6 +212,20 @@ impl File {
         }
 
         attributes::add_atttributes(db, self.id, &addition_needed)?;
+
+        Ok(())
+    }
+
+    /// Add a set of attributes to the file.
+    /// Skips already added attributes
+    pub fn remove_attributes(
+        &self,
+        db: &DbConnection,
+        attributes: Vec<Attribute>,
+    ) -> Result<(), RestError> {
+        for attribute in attributes {
+            attributes::delete_association(db, self.id, attribute.id)?;
+        }
 
         Ok(())
     }
@@ -286,6 +303,15 @@ pub mod attributes {
             .values(to_insert)
             .execute(db)?;
 
+        Ok(())
+    }
+
+    /// Delete a single association between a file and a tag
+    pub fn delete_association(db: &DbConnection, fid: i32, aid: i32) -> Result<(), RestError> {
+        use crate::schema::file_attributes::dsl::*;
+        diesel::delete(file_attributes)
+            .filter(file_id.eq(fid).and(attribute_id.eq(aid)))
+            .execute(db)?;
         Ok(())
     }
 

@@ -6,7 +6,14 @@ use super::{
 };
 use crate::{
     config::Config,
-    models::{file::File, namespace::Namespace},
+    models::{
+        attribute::{
+            AttributeType::{Group, Tag},
+            NewAttribute,
+        },
+        file::File,
+        namespace::Namespace,
+    },
     response_code::RestError,
     DbConnection, DbPool,
 };
@@ -290,11 +297,39 @@ fn update_file(
         }
     }
 
-    // TODO add/remove attributes
-
     if did_update {
         file.save(db)?;
     }
+
+    let add_tags = if let Some(ref add_tags) = update.add_tags {
+        did_update = true;
+        NewAttribute::find_and_create(&db, &add_tags, Tag, user.user.id, file.namespace_id)?
+    } else {
+        vec![]
+    };
+
+    let add_groups = if let Some(ref add_groups) = update.add_groups {
+        did_update = true;
+        NewAttribute::find_and_create(&db, &add_groups, Group, user.user.id, file.namespace_id)?
+    } else {
+        vec![]
+    };
+    file.add_attributes(db, [add_groups, add_tags].concat())?;
+
+    let remove_tags = if let Some(ref remove_tags) = update.remove_tags {
+        did_update = true;
+        NewAttribute::find_and_create(&db, &remove_tags, Tag, user.user.id, file.namespace_id)?
+    } else {
+        vec![]
+    };
+
+    let remove_groups = if let Some(ref remove_groups) = update.remove_groups {
+        did_update = true;
+        NewAttribute::find_and_create(&db, &remove_groups, Group, user.user.id, file.namespace_id)?
+    } else {
+        vec![]
+    };
+    file.remove_attributes(db, [remove_groups, remove_tags].concat())?;
 
     Ok(did_update)
 }

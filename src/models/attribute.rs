@@ -98,6 +98,34 @@ impl NewAttribute {
         Ok(self.find(db)?.is_some())
     }
 
+    /// Finds all matching Attributes
+    pub fn find_by_name(
+        db: &DbConnection,
+        items: &[String],
+        typ: AttributeType,
+        uid: i32,
+        ns_id: i32,
+    ) -> Result<Vec<Attribute>, DieselErr> {
+        use crate::schema::attributes::dsl::*;
+
+        let res = items
+            .iter()
+            .map(|item| {
+                attributes
+                    .filter(
+                        name.eq(item)
+                            .and(namespace_id.eq(ns_id))
+                            .and(user_id.eq(uid))
+                            .and(type_.eq(typ)),
+                    )
+                    .limit(1)
+                    .get_result(db)
+            })
+            .collect::<Result<Vec<Attribute>, DieselErr>>()?;
+
+        Ok(res)
+    }
+
     /// Create all missing attributes of type type_
     pub fn find_and_create(
         db: &DbConnection,
