@@ -10,6 +10,14 @@ pub struct FileList {
     #[serde(rename = "allns")]
     pub all_namespaces: bool,
     pub attributes: FileAttributes,
+    #[serde(rename = "opt")]
+    pub optional: OptionalRequestParameter,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct OptionalRequestParameter {
+    #[serde(rename = "verb")]
+    verbose: u8,
 }
 
 #[derive(Clone, Debug, Deserialize)]

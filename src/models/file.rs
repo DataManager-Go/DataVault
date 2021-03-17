@@ -252,7 +252,7 @@ impl File {
         db: &DbConnection,
         filter: &FileList,
         user: User,
-    ) -> Result<Vec<(File, Namespace)>, RestError> {
+    ) -> Result<Vec<(File, Namespace, Attribute)>, RestError> {
         use crate::schema::files::dsl::*;
 
         let mut query = files
@@ -277,7 +277,11 @@ impl File {
 
         // TODO attribute filter
 
-        Ok(query.load::<(File, Namespace)>(db)?)
+        let e = query.load::<(File, Namespace)>(db)?;
+
+        println!("{:#?}", e);
+
+        Ok(vec![])
     }
 }
 

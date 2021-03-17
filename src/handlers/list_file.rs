@@ -12,7 +12,7 @@ pub async fn ep_list_files(
 ) -> Result<Json<FileListResponse>, RestError> {
     let found = File::search(&pool.get()?, &request, user.user.clone())?
         .into_iter()
-        .map(|(file, namespace)| -> response::FileItemResponse {
+        .map(|(file, namespace, attr)| -> response::FileItemResponse {
             let mut res: response::FileItemResponse = file.into();
             res.attributes.namespace = namespace.name;
             res
