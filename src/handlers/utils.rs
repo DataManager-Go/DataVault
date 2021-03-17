@@ -1,5 +1,15 @@
+use actix_web::web;
+
 use super::{authentication::Authenticateduser, requests::upload_request::FileAttributes};
 use crate::{models::namespace::Namespace, response_code::RestError, DbConnection};
+
+pub async fn retrieve_namespace_by_name_async(
+    db: DbConnection,
+    namespace: String,
+    user: Authenticateduser,
+) -> Result<Namespace, RestError> {
+    web::block(move || retrieve_namespace_by_name(&db, &namespace, &user)).await?
+}
 
 /// find a namespace by its name
 pub fn retrieve_namespace_by_name(

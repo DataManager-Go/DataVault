@@ -9,7 +9,7 @@ use crate::{
     utils::random_string,
 };
 use chrono::prelude::*;
-use diesel::{dsl::count_star, prelude::*};
+use diesel::{dsl::count_star, prelude::*, result::Error as DieselErr};
 use std::{fs, path::Path};
 
 use super::attribute::Attribute;
@@ -69,12 +69,28 @@ pub struct NewFile {
 
 impl NewFile {
     /// Create a new file
-    pub fn create(&self, db: &DbConnection) -> Result<i32, diesel::result::Error> {
+    pub fn create(self, db: &DbConnection) -> Result<File, diesel::result::Error> {
         use crate::schema::files::dsl::*;
-        diesel::insert_into(files)
-            .values(self)
-            .returning(id)
-            .get_result(db)
+
+        let (nid, nuploaded_at) = diesel::insert_into(files)
+            .values(&self)
+            .returning((id, uploaded_at))
+            .get_result(db)?;
+
+        Ok(File {
+            id: nid,
+            user_id: self.user_id,
+            name: self.name,
+            checksum: self.checksum,
+            namespace_id: self.namespace_id,
+            encryption: self.encryption,
+            public_filename: self.public_filename,
+            is_public: self.is_public,
+            file_type: self.file_type,
+            file_size: self.file_size,
+            local_name: self.local_name,
+            uploaded_at: nuploaded_at,
+        })
     }
 }
 
@@ -104,12 +120,11 @@ impl File {
     }
 
     /// Find a file by its name and namespace
-    pub fn find_by_name(db: &DbConnection, f_name: &str, ns: i32) -> Result<File, RestError> {
+    pub fn find_by_name(db: &DbConnection, f_name: &str, ns: i32) -> Result<File, DieselErr> {
         use crate::schema::files::dsl::*;
         files
             .filter(name.eq(f_name).and(namespace_id.eq(ns)))
             .first::<File>(db)
-            .map_err(diesel_option)
     }
 
     /// Saves an existing file
@@ -133,7 +148,7 @@ impl File {
 
         // We need to delete associations first
         // otherwise db relations errors will occur
-        attributes::delete_associations(db, self.id)?;
+        attributes::delete_file_associations(db, self.id)?;
 
         // Delete local file
         fs::remove_file(Path::new(&config.server.file_output_path).join(&self.local_name))?;
@@ -253,7 +268,7 @@ pub mod attributes {
     use crate::models::file::File;
     use crate::schema::*;
     use crate::{models::attribute::Attribute, response_code::RestError, DbConnection};
-    use diesel::{dsl::exists, prelude::*};
+    use diesel::{dsl::exists, prelude::*, result::Error as DieselErr};
 
     #[derive(Identifiable, Queryable, Associations, Debug, AsChangeset, Clone)]
     #[belongs_to(Attribute)]
@@ -306,7 +321,13 @@ pub mod attributes {
         Ok(())
     }
 
-    /// Delete a single association between a file and a tag
+    /// Return true if an attribute has relations / is in use
+    fn is_attribute_used(db: &DbConnection, aid: i32) -> Result<bool, RestError> {
+        use crate::schema::file_attributes::dsl::*;
+        Ok(diesel::select(exists(file_attributes.filter(attribute_id.eq(aid)))).get_result(db)?)
+    }
+
+    /// Delete a single association
     pub fn delete_association(db: &DbConnection, fid: i32, aid: i32) -> Result<(), RestError> {
         use crate::schema::file_attributes::dsl::*;
 
@@ -322,14 +343,19 @@ pub mod attributes {
         Ok(())
     }
 
-    /// Return true if an attribute has relations
-    fn is_attribute_used(db: &DbConnection, aid: i32) -> Result<bool, RestError> {
+    /// Delete all attribute associations for an attribute
+    pub fn delete_attribute_associations(db: &DbConnection, aid: i32) -> Result<(), DieselErr> {
         use crate::schema::file_attributes::dsl::*;
-        Ok(diesel::select(exists(file_attributes.filter(attribute_id.eq(aid)))).get_result(db)?)
+
+        diesel::delete(file_attributes)
+            .filter(attribute_id.eq(aid))
+            .execute(db)?;
+
+        Ok(())
     }
 
     /// Delete all attribute associations for a file
-    pub fn delete_associations(db: &DbConnection, fid: i32) -> Result<(), RestError> {
+    pub fn delete_file_associations(db: &DbConnection, fid: i32) -> Result<(), RestError> {
         use crate::schema::file_attributes::dsl::*;
 
         // Get all attributes of the given file

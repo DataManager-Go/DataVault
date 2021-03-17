@@ -57,7 +57,7 @@ pub async fn ep_upload(
     file.id = {
         if file.id == 0 {
             let new_file: NewFile = file.clone().into();
-            new_file.create(&db)?
+            new_file.create(&db)?.id
         } else {
             file.save(&db)?;
             file.id

@@ -41,6 +41,24 @@ pub enum AttributeType {
     Tag,
 }
 
+impl Attribute {
+    /// Delete an attribute
+    pub fn delete(&self, db: &DbConnection) -> Result<(), DieselErr> {
+        delete(db, self.id)?;
+        Ok(())
+    }
+
+    /// Saves a modified attribute
+    pub fn save(&self, db: &DbConnection) -> Result<(), DieselErr> {
+        use crate::schema::attributes::dsl::*;
+        diesel::update(attributes)
+            .set(self)
+            .filter(id.eq(self.id))
+            .execute(db)?;
+        Ok(())
+    }
+}
+
 impl NewAttribute {
     /// Create a new NewAttribute object instance
     pub fn new(name: &str, type_: AttributeType, user_id: i32, namespace_id: i32) -> Self {
@@ -98,29 +116,39 @@ impl NewAttribute {
         Ok(self.find(db)?.is_some())
     }
 
-    /// Finds all matching Attributes
+    /// Find a single attribute by its name
+    /// in the provided namespace
     pub fn find_by_name(
+        db: &DbConnection,
+        attr_name: &str,
+        typ: AttributeType,
+        uid: i32,
+        ns_id: i32,
+    ) -> Result<Attribute, DieselErr> {
+        use crate::schema::attributes::dsl::*;
+
+        attributes
+            .filter(
+                name.eq(attr_name)
+                    .and(namespace_id.eq(ns_id))
+                    .and(user_id.eq(uid))
+                    .and(type_.eq(typ)),
+            )
+            .limit(1)
+            .get_result(db)
+    }
+
+    /// Finds all matching Attributes
+    pub fn find_multi_by_name(
         db: &DbConnection,
         items: &[String],
         typ: AttributeType,
         uid: i32,
         ns_id: i32,
     ) -> Result<Vec<Attribute>, DieselErr> {
-        use crate::schema::attributes::dsl::*;
-
         let res = items
             .iter()
-            .map(|item| {
-                attributes
-                    .filter(
-                        name.eq(item)
-                            .and(namespace_id.eq(ns_id))
-                            .and(user_id.eq(uid))
-                            .and(type_.eq(typ)),
-                    )
-                    .limit(1)
-                    .get_result(db)
-            })
+            .map(|item| Self::find_by_name(db, item, typ, uid, ns_id))
             .collect::<Result<Vec<Attribute>, DieselErr>>()?;
 
         Ok(res)
@@ -155,9 +183,27 @@ impl NewAttribute {
     }
 }
 
+/// List names of attributes of type 'attr_type'
+/// inside a namespace
+pub fn list_names(
+    db: &DbConnection,
+    attr_type: AttributeType,
+    ns_id: i32,
+) -> Result<Vec<String>, DieselErr> {
+    use crate::schema::attributes::dsl::*;
+    attributes
+        .filter(namespace_id.eq(ns_id).and(type_.eq(attr_type)))
+        .select(name)
+        .load::<String>(db)
+}
+
 /// Delete an attribute by its ID
 pub fn delete(db: &DbConnection, attr_id: i32) -> Result<(), DieselErr> {
     use crate::schema::attributes::dsl::*;
+
+    // Delete all file-associations first
+    crate::models::file::attributes::delete_attribute_associations(db, attr_id)?;
+
     diesel::delete(attributes)
         .filter(id.eq(attr_id))
         .execute(db)?;
