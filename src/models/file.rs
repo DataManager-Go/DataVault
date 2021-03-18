@@ -2,7 +2,7 @@ use crate::{
     config::Config,
     handlers::requests::file::FileList,
     models::{self, namespace::Namespace, user::User},
-    response_code::{self, diesel_option, Origin, RestError},
+    response_code::{diesel_option, Origin, RestError},
     schema::{self, files},
     utils::random_string,
     DbConnection,

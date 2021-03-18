@@ -92,6 +92,9 @@ pub enum RestError {
 
     #[error("Internal IO Error")]
     UnknownIO,
+
+    #[error("Partial content received")]
+    PartialContent,
 }
 
 impl RestError {
@@ -107,6 +110,7 @@ impl RestError {
             Self::MultipleFilesMatch => "MultipleFilesMatch".to_string(),
             Self::NotAllowed => "NotAllowed".to_string(),
             Self::NotPublic => "NotPublic".to_string(),
+            Self::PartialContent => "PartialContent".to_string(),
             _ => "BadRequest".to_string(),
         }
     }
@@ -126,6 +130,7 @@ impl ResponseError for RestError {
             Self::NotAllowed => StatusCode::METHOD_NOT_ALLOWED,
             Self::AlreadyPublic => StatusCode::CONFLICT,
             Self::NotPublic => StatusCode::CONFLICT,
+            Self::PartialContent => StatusCode::PARTIAL_CONTENT,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
