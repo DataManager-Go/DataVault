@@ -92,20 +92,10 @@ impl FromRequest for UploadRequest {
                 .map(String::from)
                 .map_err(|_| ErrorBadRequest("Malformed header"))?;
 
-            println!(
-                "{}",
-                base64::decode(data_header.clone())
-                    .map(String::from_utf8)
-                    .map_err(|_| ErrorBadGateway("Bad header"))?
-                    .unwrap()
-            );
             let up_req = serde_json::from_slice::<UploadRequest>(
                 &base64::decode(data_header).map_err(|_| ErrorBadGateway("Bad header"))?,
             )
-            .map_err(|e| {
-                println!("{:#?}", e);
-                ErrorBadRequest("Bad json")
-            })?;
+            .map_err(|_| ErrorBadRequest("Bad json"))?;
 
             Ok(up_req)
         };

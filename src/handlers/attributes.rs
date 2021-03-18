@@ -146,7 +146,7 @@ impl RequestData {
             self.user.user.id,
             self.namespace.id,
         )
-        .map_err(diesel_option)
+        .map_err(|i| diesel_option(i, self.attr_type))
     }
 }
 

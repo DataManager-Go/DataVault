@@ -1,12 +1,11 @@
 use crate::{
     config::Config,
+    handlers::requests::file::FileList,
     models::{self, namespace::Namespace, user::User},
-    schema, DbConnection,
-};
-use crate::{handlers::requests::file::FileList, schema::files};
-use crate::{
-    response_code::{diesel_option, RestError},
+    response_code::{self, diesel_option, Origin, RestError},
+    schema::{self, files},
     utils::random_string,
+    DbConnection,
 };
 use chrono::prelude::*;
 use diesel::{
@@ -106,7 +105,7 @@ impl File {
             .find(idd)
             .filter(user_id.eq(uid))
             .first::<File>(db)
-            .map_err(diesel_option)
+            .map_err(|i| diesel_option(i, Origin::File))
     }
 
     /// Get the count of files which can
@@ -141,7 +140,7 @@ impl File {
 
     /// Get the namespace of the file
     pub fn namespace(&self, db: &DbConnection) -> Result<Namespace, RestError> {
-        Ok(Namespace::find_by_id(db, self.namespace_id)?)
+        Namespace::find_by_id(db, self.namespace_id)
     }
 
     /// Delete the file
@@ -301,6 +300,7 @@ impl File {
                 let mut concatted_file: (File, Namespace, Vec<Attribute>) = (
                     e.0,
                     e.1,
+                    // Create a new vector containing the attribute if exists
                     e.3.and_then(|i| Some(vec![i])).unwrap_or_default(),
                 );
 

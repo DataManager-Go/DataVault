@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 
 use actix_web::{
     error::{BlockingError, ResponseError},
@@ -16,9 +16,43 @@ pub struct Success {
 
 pub const SUCCESS: Json<Success> = Json(Success { message: "Success" });
 
+pub trait AsOrigin {
+    fn as_origin(&self) -> Origin;
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum Origin {
+    File,
+    Files,
+    LocalFile,
+    Namespace,
+    Tag,
+    Group,
+    Record,
+    User,
+}
+
+impl Debug for Origin {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Origin::Files => write!(f, "File(s)"),
+            _ => write!(f, "{:?}", self),
+        }
+    }
+}
+
+impl AsOrigin for Origin {
+    fn as_origin(&self) -> Origin {
+        *self
+    }
+}
+
 /// Possible rest error types
 #[derive(Error, Debug, PartialEq, Clone, Copy)]
 pub enum RestError {
+    #[error("{0:?} not found")]
+    DNotFound(Origin),
+
     #[error("Not found")]
     NotFound,
 
@@ -63,7 +97,7 @@ pub enum RestError {
 impl RestError {
     pub fn name(&self) -> String {
         match self {
-            Self::NotFound => "NotFound".to_string(),
+            Self::NotFound | Self::DNotFound(_) => "NotFound".to_string(),
             Self::Forbidden => "Forbidden".to_string(),
             Self::UnknownIO => "Unknown IO".to_string(),
             Self::Internal => "Unknown".to_string(),
@@ -82,7 +116,7 @@ impl RestError {
 impl ResponseError for RestError {
     fn status_code(&self) -> StatusCode {
         match *self {
-            Self::NotFound => StatusCode::NOT_FOUND,
+            Self::NotFound | Self::DNotFound(_) => StatusCode::NOT_FOUND,
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::BadRequest => StatusCode::BAD_REQUEST,
             Self::Forbidden => StatusCode::FORBIDDEN,
@@ -117,48 +151,47 @@ struct ErrorResponse {
 }
 
 impl From<r2d2::Error> for RestError {
-    fn from(e: r2d2::Error) -> RestError {
-        debug!("{:?}", e);
+    fn from(_: r2d2::Error) -> RestError {
         RestError::Internal
     }
 }
 
 impl From<diesel::result::Error> for RestError {
-    fn from(e: diesel::result::Error) -> RestError {
-        debug!("{:?}", e);
+    fn from(_: diesel::result::Error) -> RestError {
         RestError::Internal
     }
 }
 
 /// NotFound errors are mapped to 'NotFound' error responses.
 /// This is helpful when diesel::result::NotFound is an allowed result
-pub fn diesel_option(i: diesel::result::Error) -> RestError {
+pub fn diesel_option<T>(i: diesel::result::Error, origin: T) -> RestError
+where
+    T: AsOrigin,
+{
     match i {
-        diesel::result::Error::NotFound => RestError::NotFound,
+        diesel::result::Error::NotFound => RestError::DNotFound(origin.as_origin()),
         _ => i.into(),
     }
 }
 
 impl From<std::io::Error> for RestError {
     fn from(e: std::io::Error) -> RestError {
-        debug!("{:?}", e);
         match e.kind() {
-            std::io::ErrorKind::NotFound => RestError::NotFound,
+            std::io::ErrorKind::NotFound => RestError::DNotFound(Origin::LocalFile),
             _ => RestError::UnknownIO,
         }
     }
 }
 
 impl From<BlockingError> for RestError {
-    fn from(err: BlockingError) -> Self {
-        debug!("{:?}", err);
+    fn from(_: BlockingError) -> Self {
         Self::Internal
     }
 }
 
 pub fn login_error(err: diesel::result::Error) -> RestError {
     match err {
-        diesel::result::Error::NotFound => RestError::NotFound,
+        diesel::result::Error::NotFound => RestError::DNotFound(Origin::User),
         _ => RestError::Internal,
     }
 }

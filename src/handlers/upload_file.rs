@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use super::{
     authentication::Authenticateduser, requests::upload_request::UploadRequest,
     response::UploadResponse, utils::retrieve_namespace,
@@ -18,7 +20,7 @@ use actix_web::{
     web::{self, Json, Payload},
     HttpRequest,
 };
-use async_std::{fs, io::prelude::*, path::Path};
+use async_std::{fs, io::prelude::*};
 use attribute::{
     AttributeType::{Group, Tag},
     NewAttribute,
@@ -159,9 +161,8 @@ pub async fn save_to_file(
     let mut hasher = crc32fast::Hasher::new();
 
     // Create a new local file
-    let mut file = fs::File::create(Path::new(&config.server.file_output_path).join(filename))
-        .await
-        .map_err::<RestError, _>(|i| i.into())?;
+    let mut file =
+        fs::File::create(Path::new(&config.server.file_output_path).join(filename)).await?;
 
     let mut size: i64 = 0;
     let mut mime_type: Option<String> = None;
