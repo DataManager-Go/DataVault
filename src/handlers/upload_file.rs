@@ -286,8 +286,6 @@ impl UploadBuffer {
 
     /// Push 'bytes' into the buffer and pop overflowing items
     pub fn push(&mut self, bytes: &[u8]) -> Vec<u8> {
-        let bytes = bytes.iter().rev().map(|i| *i).collect_vec();
-
         let will_be_popped = {
             let left_to_fill = self.size - self.len();
             if bytes.len() > left_to_fill {
@@ -298,25 +296,25 @@ impl UploadBuffer {
                     .skip(left_to_fill)
                     .take(bytes.len() - left_to_fill)
                     // Put in right order
-                    .rev()
                     .map(|i| *i)
                     .collect_vec()
             } else {
                 vec![]
             }
         };
+
         // Add bytes.len() to curret len, but don't go over self.size
         self.len = cmp::min(self.len + bytes.len(), self.size);
 
         // Push items
-        for byte in bytes.iter().map(|i| *i).rev() {
+        for byte in bytes.iter().map(|i| *i) {
             self.buff.insert(0, byte)
         }
 
         // Shorten buffer
         self.buff.truncate(self.size);
 
-        will_be_popped.iter().rev().map(|i| *i).collect_vec()
+        will_be_popped
     }
 
     /// Set the buffers holding value. Never access the
@@ -333,7 +331,8 @@ impl UploadBuffer {
         self.buff
             .iter()
             .map(|i| *i)
-            // Don't return more than self.len
+            // Don't return more than self.len!
+            // Required since len < size is valid
             .take(self.len())
             .rev()
             .collect_vec()
