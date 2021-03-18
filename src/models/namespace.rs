@@ -5,7 +5,7 @@ use crate::{
 };
 use crate::{schema::*, DbConnection};
 use diesel::prelude::*;
-use diesel::result::Error::NotFound;
+use diesel::result::{Error as DieselErr, Error::NotFound};
 use serde::Serialize;
 
 use super::file::File;
@@ -80,7 +80,7 @@ impl Namespace {
         db: &DbConnection,
         ns_name: &str,
         creator: i32,
-    ) -> Result<Option<Namespace>, RestError> {
+    ) -> Result<Option<Namespace>, DieselErr> {
         use crate::schema::namespaces::dsl::*;
 
         let res = namespaces
@@ -91,7 +91,7 @@ impl Namespace {
             return Ok(None);
         }
 
-        res.map(Some).map_err(|i| i.into())
+        res.map(Some)
     }
 
     /// List all namespaces of a user

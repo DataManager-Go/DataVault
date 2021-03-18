@@ -104,11 +104,7 @@ fn select_file(
 
     if let Some(id) = upload_request.replace_file_by_id {
         // Replace file by id
-        // TODO merge into one db call
-
         file = File::find_by_id(db, id, user.user.id)?;
-
-        // Set target_namespace to file's ns
         target_namespace = file.namespace(db)?;
     } else if !replace_file {
         // Create a new file

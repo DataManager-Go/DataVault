@@ -65,6 +65,7 @@ joinable!(attributes -> namespaces (namespace_id));
 joinable!(attributes -> users (user_id));
 joinable!(file_attributes -> attributes (attribute_id));
 joinable!(file_attributes -> files (file_id));
+joinable!(files -> namespaces (namespace_id));
 joinable!(files -> users (user_id));
 joinable!(login_sessions -> users (user_id));
 joinable!(namespaces -> users (user_id));
