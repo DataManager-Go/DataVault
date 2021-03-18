@@ -1,5 +1,12 @@
 use super::{authentication::Authenticateduser, requests::file::FileList, response};
-use crate::{models::file::File, response_code::RestError, DbPool};
+use crate::{
+    models::{
+        attribute::{Attribute, AttributeType},
+        file::File,
+    },
+    response_code::RestError,
+    DbPool,
+};
 
 use actix_web::web::{self, Json};
 use response::FileListResponse;
@@ -15,6 +22,18 @@ pub async fn ep_list_files(
         .map(|(file, namespace, attr)| -> response::FileItemResponse {
             let mut res: response::FileItemResponse = file.into();
             res.attributes.namespace = namespace.name;
+            let (tags, groups): (Vec<Attribute>, Vec<Attribute>) = attr
+                .into_iter()
+                .partition(|i| i.type_.eq(&AttributeType::Tag));
+
+            if !tags.is_empty() {
+                res.attributes.tags = Some(tags.into_iter().map(|i| i.name).collect());
+            }
+
+            if !groups.is_empty() {
+                res.attributes.groups = Some(groups.into_iter().map(|i| i.name).collect());
+            }
+
             res
         })
         .collect();
