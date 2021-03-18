@@ -6,6 +6,7 @@ use crate::{
 use crate::{schema::*, DbConnection};
 use diesel::prelude::*;
 use diesel::result::{Error as DieselErr, Error::NotFound};
+use response_code::Origin;
 use serde::Serialize;
 
 use super::file::File;
@@ -70,7 +71,7 @@ impl Namespace {
         namespaces
             .find(idd)
             .first(db)
-            .map_err(response_code::diesel_option)
+            .map_err(|i| response_code::diesel_option(i, Origin::Namespace))
     }
 
     /// Find a namespace by its name

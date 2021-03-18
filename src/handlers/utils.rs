@@ -1,7 +1,11 @@
 use actix_web::web;
 
 use super::{authentication::Authenticateduser, requests::upload_request::FileAttributes};
-use crate::{models::namespace::Namespace, response_code::RestError, DbConnection};
+use crate::{
+    models::namespace::Namespace,
+    response_code::{Origin, RestError},
+    DbConnection,
+};
 
 pub async fn retrieve_namespace_by_name_async(
     db: DbConnection,
@@ -46,7 +50,8 @@ pub fn retrieve_namespace(
                 .cloned()
                 .unwrap_or(user.user.get_default_namespace(&db)?)
         } else {
-            Namespace::find_by_name(&db, &ns_name, user.user.id)?.ok_or(RestError::NotFound)?
+            Namespace::find_by_name(&db, &ns_name, user.user.id)?
+                .ok_or(RestError::DNotFound(Origin::Namespace))?
         }
     })
 }

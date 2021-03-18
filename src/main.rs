@@ -15,6 +15,8 @@ mod response_code;
 mod schema;
 pub mod utils;
 
+use std::path::Path;
+
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
@@ -27,6 +29,13 @@ async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("debug"));
 
     let config = config::Config::new().await.expect("Couldn't load config");
+
+    // Create local filepath if net yet exists
+    let local_path = Path::new(&config.server.file_output_path);
+    if !local_path.exists() {
+        std::fs::create_dir_all(local_path).expect("Coudln't create local file directory");
+    }
+
     let db = db::connect();
 
     HttpServer::new(move || {

@@ -14,7 +14,7 @@ use crate::{
         file::File,
         namespace::Namespace,
     },
-    response_code::RestError,
+    response_code::{Origin, RestError},
     DbConnection, DbPool,
 };
 
@@ -49,7 +49,7 @@ pub async fn ep_file_action(
     let files = web::block(move || find_files(&pool_clone, &request_clone, &user_clone)).await??;
 
     if files.is_empty() {
-        return Err(RestError::NotFound);
+        return Err(RestError::DNotFound(Origin::Files));
     }
 
     if files.len() > 1 && !request.all {
@@ -76,7 +76,7 @@ pub async fn ep_publish_file(
     let files = web::block(move || find_files(&pool_clone, &request_clone, &user_clone)).await??;
 
     if files.is_empty() {
-        return Err(RestError::NotFound);
+        return Err(RestError::DNotFound(Origin::Files));
     }
 
     if files.len() > 1 && !request.all {
@@ -112,7 +112,7 @@ pub async fn ep_file_download(
     let files = web::block(move || find_files(&pool_clone, &request_clone, &user_clone)).await??;
 
     if files.is_empty() {
-        return Err(RestError::NotFound);
+        return Err(RestError::DNotFound(Origin::Files));
     }
 
     if files.len() > 1 {
@@ -268,7 +268,8 @@ fn update_file(
 
     // Update namespace
     if let Some(ref new_ns) = update.new_namespace {
-        let ns = Namespace::find_by_name(db, &new_ns, user.user.id)?.ok_or(RestError::NotFound)?;
+        let ns = Namespace::find_by_name(db, &new_ns, user.user.id)?
+            .ok_or(RestError::DNotFound(Origin::Namespace))?;
         if ns.id != file.namespace_id {
             // Update ns
             file.namespace_id = ns.id;

@@ -1,12 +1,11 @@
 use crate::{
     config::Config,
-    models::{namespace::Namespace, user::User},
-    DbConnection,
-};
-use crate::{handlers::requests::file::FileList, schema::files};
-use crate::{
-    response_code::{diesel_option, RestError},
+    handlers::requests::file::FileList,
+    models::{self, namespace::Namespace, user::User},
+    response_code::{diesel_option, Origin, RestError},
+    schema::{self, files},
     utils::random_string,
+    DbConnection,
 };
 use chrono::prelude::*;
 use diesel::{
@@ -106,7 +105,7 @@ impl File {
             .find(idd)
             .filter(user_id.eq(uid))
             .first::<File>(db)
-            .map_err(diesel_option)
+            .map_err(|i| diesel_option(i, Origin::File))
     }
 
     /// Get the count of files which can
@@ -141,7 +140,7 @@ impl File {
 
     /// Get the namespace of the file
     pub fn namespace(&self, db: &DbConnection) -> Result<Namespace, RestError> {
-        Ok(Namespace::find_by_id(db, self.namespace_id)?)
+        Namespace::find_by_id(db, self.namespace_id)
     }
 
     /// Delete the file
@@ -252,12 +251,17 @@ impl File {
         db: &DbConnection,
         filter: &FileList,
         user: User,
-    ) -> Result<Vec<(File, Namespace, Attribute)>, RestError> {
+    ) -> Result<Vec<(File, Namespace, Vec<Attribute>)>, RestError> {
         use crate::schema::files::dsl::*;
 
         let mut query = files
             // Join namespaces
-            .inner_join(crate::schema::namespaces::table)
+            .inner_join(schema::namespaces::table)
+            .left_join(schema::file_attributes::table)
+            .left_join(
+                schema::attributes::table
+                    .on(schema::attributes::id.eq(schema::file_attributes::id)),
+            )
             // Always filter by user_id
             .filter(user_id.eq(user.id))
             .into_boxed::<Pg>();
@@ -275,13 +279,45 @@ impl File {
             query = query.filter(name.ilike(&filter.name));
         }
 
-        // TODO attribute filter
+        use itertools::Itertools;
 
-        let e = query.load::<(File, Namespace)>(db)?;
+        let result = query.load::<(
+            File,
+            Namespace,
+            Option<models::file::attributes::FileAttribute>,
+            Option<models::attribute::Attribute>,
+        )>(db)?;
 
-        println!("{:#?}", e);
+        // Collect multiple files with same ID into one, with multiple all attributes
+        let res: Vec<(File, Namespace, Vec<Attribute>)> = result
+            .into_iter()
+            .group_by(|i| i.0.id)
+            .into_iter()
+            .map(|(_, file)| {
+                let mut file = file.into_iter();
 
-        Ok(vec![])
+                let e = file.next().unwrap();
+                let mut concatted_file: (File, Namespace, Vec<Attribute>) = (
+                    e.0,
+                    e.1,
+                    // Create a new vector containing the attribute if exists
+                    e.3.and_then(|i| Some(vec![i])).unwrap_or_default(),
+                );
+
+                // Collect all attributes
+                file.for_each(|i| {
+                    if let Some(attr) = i.3 {
+                        concatted_file.2.push(attr);
+                    }
+                });
+
+                concatted_file
+            })
+            .collect();
+
+        // TODO ADD FILTER
+
+        Ok(res)
     }
 }
 

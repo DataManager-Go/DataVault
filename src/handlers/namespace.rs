@@ -2,7 +2,7 @@ use super::{authentication::Authenticateduser, requests::NamespaceRequest, respo
 use crate::{
     config::Config,
     models::namespace::{self, Namespace},
-    response_code::{RestError, Success, SUCCESS},
+    response_code::{Origin, RestError, Success, SUCCESS},
     DbPool,
 };
 
@@ -66,7 +66,7 @@ pub async fn ep_delete_namespace(
             ns.delete(&db, &config)?;
             Ok(())
         } else {
-            Err(RestError::NotFound)
+            Err(RestError::DNotFound(Origin::Namespace))
         }
     })
     .await??;
@@ -101,7 +101,7 @@ pub async fn ep_rename_namespace(
             ns.rename(&db, new_name.as_ref())?;
             Ok(())
         } else {
-            Err(RestError::NotFound)
+            Err(RestError::DNotFound(Origin::Namespace))
         }
     })
     .await??;

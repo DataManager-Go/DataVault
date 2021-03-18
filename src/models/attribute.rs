@@ -1,6 +1,10 @@
 use super::{namespace::Namespace, user::User};
 
-use crate::{schema::attributes, DbConnection};
+use crate::{
+    response_code::{AsOrigin, Origin},
+    schema::attributes,
+    DbConnection,
+};
 
 use diesel::{
     backend::Backend,
@@ -39,6 +43,15 @@ pub struct NewAttribute {
 pub enum AttributeType {
     Group,
     Tag,
+}
+
+impl AsOrigin for AttributeType {
+    fn as_origin(&self) -> Origin {
+        match self {
+            AttributeType::Group => Origin::Group,
+            AttributeType::Tag => Origin::Tag,
+        }
+    }
 }
 
 impl Attribute {
