@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 pub mod attributes;
 pub mod authentication;
-mod chunked;
+pub mod chunked;
 pub mod file_action;
 pub mod list_file;
 pub mod namespace;
@@ -11,3 +11,4 @@ mod response;
 pub mod upload_file;
 pub mod user;
 mod utils;
+pub mod web;

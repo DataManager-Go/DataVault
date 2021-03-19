@@ -355,6 +355,15 @@ impl File {
 
         Ok(res)
     }
+
+    /// Get a public file
+    pub fn get_public_file(db: &DbConnection, public_name: &str) -> Result<File, DieselErr> {
+        use schema::files::dsl::*;
+        files
+            .filter(public_filename.eq(public_name).and(is_public))
+            .limit(1)
+            .get_result(db)
+    }
 }
 
 impl Into<NewFile> for File {

@@ -47,6 +47,10 @@ async fn main() -> std::io::Result<()> {
             // Middlewares
             .wrap(middleware::Logger::default())
             // Services
+            .service(
+                web::resource("/preview/raw/{fileID}")
+                    .to(handlers::web::raw_file_preview::ep_preview_raw),
+            )
             .service(web::resource("/user/register").to(handlers::user::ep_register))
             .service(web::resource("/user/login").to(handlers::user::ep_login))
             .service(web::resource("/files").to(handlers::list_file::ep_list_files))
