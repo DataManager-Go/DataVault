@@ -6,8 +6,10 @@ use crate::{
     config::Config,
     models::file::File,
     response_code::{self, RestError},
-    DbPool,
+    templates, DbPool,
 };
+
+use super::raw_file_preview;
 
 lazy_static! {
     pub static ref DEFAULT_ACE_THEME: String = String::from("nord_dark");
@@ -37,7 +39,7 @@ pub async fn ep_preview(
 
     // return raw fie if the requesing useragent is in the raw_file_agents list
     if check_is_raw_agent(&request, &config) || is_raw_preview_file(&file) {
-        return super::raw_file_preview::serve_file(&file, &config).await;
+        return raw_file_preview::serve_file(&file, &config).await;
     }
 
     let host = &config.server.external_url;
@@ -47,7 +49,7 @@ pub async fn ep_preview(
         .as_ref()
         .unwrap_or_else(|| &DEFAULT_ACE_THEME);
 
-    Ok(HttpResponse::Ok().body(render!(crate::templates::preview, host, &ace_theme, &file)))
+    Ok(HttpResponse::Ok().body(render!(templates::preview, host, &ace_theme, &file)))
 }
 
 /// Return true if a file previewed 'raw'
