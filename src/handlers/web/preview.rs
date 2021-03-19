@@ -1,4 +1,4 @@
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{http::header::USER_AGENT, web, HttpRequest, HttpResponse};
 use lazy_static::lazy_static;
 use response_code::Origin;
 
@@ -22,6 +22,11 @@ pub async fn ep_preview(
 ) -> Result<HttpResponse, RestError> {
     let db = pool.get()?;
 
+    // return raw fie if the requesing useragent is in the raw_file_agents list
+    if check_is_raw_agent(&request, &config) {
+        return super::raw_file_preview::ep_preview_raw(file_id, pool, config).await;
+    }
+
     // Find file
     let file = web::block(move || File::get_public_file(&db, &file_id))
         .await?
@@ -42,4 +47,18 @@ pub async fn ep_preview(
         &ace_theme,
         &file
     )))
+}
+
+fn check_is_raw_agent(request: &HttpRequest, config: &Config) -> bool {
+    if let Some(ref raw_agents) = config.raw_file_agents {
+        if let Some(agent) = request
+            .headers()
+            .get(USER_AGENT)
+            .map(|i| i.to_str().unwrap_or("").to_lowercase())
+        {
+            return !agent.is_empty() && raw_agents.iter().any(|i| agent.contains(i));
+        }
+    }
+
+    false
 }
