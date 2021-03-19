@@ -30,15 +30,15 @@ pub async fn ep_preview(
 ) -> Result<HttpResponse, RestError> {
     let db = pool.get()?;
 
-    // return raw fie if the requesing useragent is in the raw_file_agents list
-    if check_is_raw_agent(&request, &config) {
-        return super::raw_file_preview::ep_preview_raw(file_id, pool, config).await;
-    }
-
     // Find file
     let file = web::block(move || File::get_public_file(&db, &file_id))
         .await?
         .map_err(|i| response_code::diesel_option(i, Origin::File))?;
+
+    // return raw fie if the requesing useragent is in the raw_file_agents list
+    if check_is_raw_agent(&request, &config) || is_raw_preview_file(&file) {
+        return super::raw_file_preview::serve_file(&file, &config).await;
+    }
 
     let host = &config.server.external_url;
     let ace_theme = config
@@ -48,6 +48,13 @@ pub async fn ep_preview(
         .unwrap_or_else(|| &DEFAULT_ACE_THEME);
 
     Ok(HttpResponse::Ok().body(render!(crate::templates::preview, host, &ace_theme, &file)))
+}
+
+/// Return true if a file previewed 'raw'
+fn is_raw_preview_file(file: &File) -> bool {
+    file.file_type.is_empty()
+        || file.file_type.contains("application/pdf")
+        || file.file_type.contains("audio")
 }
 
 fn check_is_raw_agent(request: &HttpRequest, config: &Config) -> bool {

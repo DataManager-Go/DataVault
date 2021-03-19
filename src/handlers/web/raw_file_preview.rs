@@ -25,6 +25,15 @@ pub async fn ep_preview_raw(
         .await?
         .map_err(|i| response_code::diesel_option(i, Origin::File))?;
 
+    serve_file(&file, &config).await
+}
+
+/// Serves the content of the file
+pub async fn serve_file(file: &File, config: &Config) -> Result<HttpResponse, RestError> {
+    if !file.is_public {
+        return Err(RestError::IllegalOperation);
+    }
+
     // build response
     let mut response = HttpResponse::Ok();
     response.insert_header((CONTENT_LENGTH, file.file_size));
