@@ -48,9 +48,7 @@ pub async fn ep_upload(
     let (file, namespace) =
         web::block(move || select_file(&request_cloned, &db, user_cloned)).await??;
 
-    // Continue in out-sourced function
-    // to delete the local file on an error
-    let result = handle_upload(
+    let upload = UploadHanler {
         payload,
         config,
         file,
@@ -59,10 +57,13 @@ pub async fn ep_upload(
         upload_request,
         user,
         namespace,
-    )
-    .await;
+    };
+
+    // Continue in out-sourced function
+    // to delete the local file on an error
+    let result = upload.handle().await;
     if let Err(err) = result {
-        // DELETE FILE HERE
+        // TODO DELETE FILE HERE
         println!("should delete local file: {:?}", err);
         Err(err)
     } else {
@@ -70,45 +71,61 @@ pub async fn ep_upload(
     }
 }
 
-/// Moved to extra function to catch error easily
-/// and delete the local file on an error
-async fn handle_upload(
+// Prevent too many parameters
+struct UploadHanler {
     payload: Payload,
     config: web::Data<Config>,
-    mut file: File,
+    file: File,
     request: HttpRequest,
     pool: web::Data<r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::PgConnection>>>,
     upload_request: UploadRequest,
     user: Authenticateduser,
     namespace: Namespace,
-) -> Result<Json<UploadResponse>, RestError> {
-    let (crc, size, mime_type) =
-        save_to_file(payload, config.deref(), &file.local_name, request).await?;
-    file.checksum = crc.clone();
-    file.file_size = size;
-    file.file_type = mime_type;
-    let db = pool.get()?;
+}
 
-    file.id = {
-        if file.id == 0 {
-            let new_file: NewFile = file.clone().into();
-            new_file.create(&db)?.id
-        } else {
-            file.save(&db)?;
-            file.id
-        }
-    };
+impl UploadHanler {
+    /// Moved to extra function to catch error easily
+    /// and delete the local file on an error
+    async fn handle(mut self) -> Result<Json<UploadResponse>, RestError> {
+        let (crc, size, mime_type) = save_to_file(
+            self.payload,
+            self.config.deref(),
+            &self.file.local_name,
+            self.request,
+        )
+        .await?;
+        self.file.checksum = crc.clone();
+        self.file.file_size = size;
+        self.file.file_type = mime_type;
+        let db = self.pool.get()?;
 
-    handle_attributes(&db, &upload_request, &file, &user, &namespace)?;
+        self.file.id = {
+            if self.file.id == 0 {
+                let new_file: NewFile = self.file.clone().into();
+                new_file.create(&db)?.id
+            } else {
+                self.file.save(&db)?;
+                self.file.id
+            }
+        };
 
-    Ok(Json(UploadResponse {
-        file_size: size,
-        checksum: crc,
-        namespace: namespace.name,
-        file_id: file.id,
-        file_name: file.name,
-        public_file_name: None,
-    }))
+        handle_attributes(
+            &db,
+            &self.upload_request,
+            &self.file,
+            &self.user,
+            &self.namespace,
+        )?;
+
+        Ok(Json(UploadResponse {
+            file_size: size,
+            checksum: crc,
+            namespace: self.namespace.name,
+            file_id: self.file.id,
+            file_name: self.file.name,
+            public_file_name: None,
+        }))
+    }
 }
 
 /// Create or find a file object, on which the upload function
@@ -255,13 +272,13 @@ async fn write(file: &mut fs::File, hasher: &mut Hasher, data: &[u8]) -> Result<
 
 /// Gets the last n bytes of data
 fn get_last_n(data: &[u8], n: usize) -> Vec<u8> {
-    data.iter().rev().take(n).rev().map(|i| *i).collect_vec()
+    data.iter().rev().take(n).rev().copied().collect_vec()
 }
 
 /// Get data without last n bytes
 fn without_last_n(data: &[u8], n: usize) -> Vec<u8> {
     let take = data.len() - cmp::min(n, data.len());
-    data.iter().take(take).map(|i| *i).collect()
+    data.iter().take(take).copied().collect()
 }
 
 /// A buffer to keep track of the
@@ -276,12 +293,11 @@ pub struct UploadBuffer {
 impl UploadBuffer {
     /// Create a new buffer
     pub fn new(size: usize) -> Self {
-        let mut buff = Vec::with_capacity(size);
-        for _ in 0..size {
-            buff.push(0);
+        UploadBuffer {
+            size,
+            buff: vec![0; size],
+            len: 0,
         }
-
-        UploadBuffer { size, buff, len: 0 }
     }
 
     /// Push 'bytes' into the buffer and pop overflowing items
@@ -296,7 +312,7 @@ impl UploadBuffer {
                     .skip(left_to_fill)
                     .take(bytes.len() - left_to_fill)
                     // Put in right order
-                    .map(|i| *i)
+                    .copied()
                     .collect_vec()
             } else {
                 vec![]
@@ -307,7 +323,7 @@ impl UploadBuffer {
         self.len = cmp::min(self.len + bytes.len(), self.size);
 
         // Push items
-        for byte in bytes.iter().map(|i| *i) {
+        for byte in bytes.iter().copied() {
             self.buff.insert(0, byte)
         }
 
@@ -321,7 +337,7 @@ impl UploadBuffer {
     /// inner vector manually, since the buffer keeps track
     /// of the inner items in several ways
     pub fn set(&mut self, bytes: &[u8]) {
-        for byte in bytes.iter().map(|i| *i).rev() {
+        for byte in bytes.iter().copied() {
             self.push(&[byte]);
         }
     }
@@ -330,7 +346,7 @@ impl UploadBuffer {
     pub fn get(&self) -> Vec<u8> {
         self.buff
             .iter()
-            .map(|i| *i)
+            .copied()
             // Don't return more than self.len!
             // Required since len < size is valid
             .take(self.len())

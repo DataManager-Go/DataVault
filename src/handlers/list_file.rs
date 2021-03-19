@@ -17,7 +17,7 @@ pub async fn ep_list_files(
     request: Json<FileList>,
     user: Authenticateduser,
 ) -> Result<Json<FileListResponse>, RestError> {
-    let found = File::search(&pool.get()?, &request, user.user.clone())?
+    let found = File::search(&pool.get()?, &request, user.user)?
         .into_iter()
         .map(|(file, namespace, attr)| -> response::FileItemResponse {
             let mut res: response::FileItemResponse = file.into();

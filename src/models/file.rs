@@ -293,15 +293,13 @@ impl File {
             .into_iter()
             .group_by(|i| i.0.id)
             .into_iter()
-            .map(|(_, file)| {
-                let mut file = file.into_iter();
-
+            .map(|(_, mut file)| {
                 let e = file.next().unwrap();
                 let mut concatted_file: (File, Namespace, Vec<Attribute>) = (
                     e.0,
                     e.1,
                     // Create a new vector containing the attribute if exists
-                    e.3.and_then(|i| Some(vec![i])).unwrap_or_default(),
+                    e.3.map(|i| vec![i]).unwrap_or_default(),
                 );
 
                 // Collect all attributes
