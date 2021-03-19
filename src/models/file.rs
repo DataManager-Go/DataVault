@@ -151,11 +151,12 @@ impl File {
         // otherwise db relations errors will occur
         attributes::delete_file_associations(db, self.id)?;
 
-        // Delete local file
-        fs::remove_file(Path::new(&config.server.file_output_path).join(&self.local_name))?;
-
         // rm from DB
         diesel::delete(self).execute(db)?;
+
+        // Delete local file. Ignore errors
+        fs::remove_file(Path::new(&config.server.file_output_path).join(&self.local_name)).ok();
+
         Ok(())
     }
 
@@ -302,12 +303,8 @@ impl File {
                     e.3.map(|i| vec![i]).unwrap_or_default(),
                 );
 
-                // Collect all attributes
-                file.for_each(|i| {
-                    if let Some(attr) = i.3 {
-                        concatted_file.2.push(attr);
-                    }
-                });
+                // Append all attributes from other results
+                concatted_file.2.extend(file.filter_map(|i| i.3));
 
                 concatted_file
             })

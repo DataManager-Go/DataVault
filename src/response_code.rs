@@ -34,10 +34,20 @@ pub enum Origin {
 
 impl Debug for Origin {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Origin::Files => write!(f, "File(s)"),
-            _ => write!(f, "{:?}", self),
-        }
+        write!(
+            f,
+            "{}",
+            match self {
+                Origin::Files => "File(s)",
+                Origin::File => "File",
+                Origin::LocalFile => "LocalFile",
+                Origin::Namespace => "Namespace",
+                Origin::Tag => "Tag",
+                Origin::Group => "Group",
+                Origin::Record => "Record",
+                Origin::User => "User",
+            }
+        )
     }
 }
 
