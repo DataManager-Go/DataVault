@@ -13,6 +13,14 @@ lazy_static! {
     pub static ref DEFAULT_ACE_THEME: String = String::from("nord_dark");
 }
 
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum PreviewType {
+    Text,
+    Image,
+    Viedo,
+    Fallback,
+}
+
 /// Endpoint for registering new users
 pub async fn ep_preview(
     file_id: web::Path<String>,
@@ -32,7 +40,6 @@ pub async fn ep_preview(
         .await?
         .map_err(|i| response_code::diesel_option(i, Origin::File))?;
 
-    let scheme = request.uri().scheme_str().unwrap_or("http");
     let host = &config.server.external_url;
     let ace_theme = config
         .preview
@@ -40,13 +47,7 @@ pub async fn ep_preview(
         .as_ref()
         .unwrap_or_else(|| &DEFAULT_ACE_THEME);
 
-    Ok(HttpResponse::Ok().body(render!(
-        crate::templates::preview,
-        scheme,
-        host,
-        &ace_theme,
-        &file
-    )))
+    Ok(HttpResponse::Ok().body(render!(crate::templates::preview, host, &ace_theme, &file)))
 }
 
 fn check_is_raw_agent(request: &HttpRequest, config: &Config) -> bool {

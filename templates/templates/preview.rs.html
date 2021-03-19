@@ -1,12 +1,12 @@
 @use crate::models::file::File;
-@(scheme: &str, host: &str, ace_theme: &str, file: &File)
+@(host: &str, ace_theme: &str, file: &File)
 
 <!DOCTYPE html>
 <html lang="en" style="height: 100%;">
 
 <head>
-    <meta property="og:image" content="@scheme://@host/preview/raw/@file.public_filename.as_ref().unwrap()">
-    <meta property="og:url" content="@scheme://@host/preview/raw/@file.public_filename.as_ref().unwrap()" />
+    <meta property="og:image" content="@host/preview/raw/@file.public_filename.as_ref().unwrap()">
+    <meta property="og:url" content="@host/preview/raw/@file.public_filename.as_ref().unwrap()" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="A very illegal upload service">
     <meta property="og:title" content="Not an illegal file" />
@@ -152,7 +152,7 @@ html @{
     var mode = modelist.getModeForPath( "@file.name").mode;
     editor.session.setMode(mode);
 
-    $.get("@scheme://@host/preview/raw/@file.public_filename.as_ref().unwrap()", @{@}, function (data) @{
+    $.get("@host/preview/raw/@file.public_filename.as_ref().unwrap()", @{@}, function (data) @{
         editor.setValue(data, -1);
         setTimeout(function()@{
             var heightUpdateFunction = function () @{
