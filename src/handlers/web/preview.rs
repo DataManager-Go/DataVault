@@ -1,6 +1,5 @@
-use std::{fs, path::Path};
-
-use actix_web::{http::header::CONTENT_LENGTH, web, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
+use lazy_static::lazy_static;
 use response_code::Origin;
 
 use crate::{
@@ -10,13 +9,16 @@ use crate::{
     DbPool,
 };
 
-use super::super::chunked::ChunkedReadFile;
+lazy_static! {
+    pub static ref DEFAULT_ACE_THEME: String = String::from("nord_dark");
+}
 
 /// Endpoint for registering new users
 pub async fn ep_preview(
     file_id: web::Path<String>,
     pool: web::Data<DbPool>,
     config: web::Data<Config>,
+    request: HttpRequest,
 ) -> Result<HttpResponse, RestError> {
     let db = pool.get()?;
 
@@ -25,17 +27,19 @@ pub async fn ep_preview(
         .await?
         .map_err(|i| response_code::diesel_option(i, Origin::File))?;
 
-    /*
-    let mut response = HttpResponse::Ok();
-    response.insert_header((CONTENT_LENGTH, file.file_size));
+    let scheme = request.uri().scheme_str().unwrap_or("http");
+    let host = &config.server.external_url;
+    let ace_theme = config
+        .preview
+        .ace_theme
+        .as_ref()
+        .unwrap_or_else(|| &DEFAULT_ACE_THEME);
 
-    if !file.file_type.is_empty() {
-        response.insert_header(("Content-Type", format!("{};charset=UTF-8", file.file_type)));
-    }
-
-    let f = fs::File::open(Path::new(&config.server.file_output_path).join(&file.local_name))?;
-    let reader = ChunkedReadFile::new(f.metadata()?.len(), 0, f);
-    */
-
-    Ok(HttpResponse::Ok().into())
+    Ok(HttpResponse::Ok().body(render!(
+        crate::templates::preview,
+        scheme,
+        host,
+        &ace_theme,
+        &file
+    )))
 }

@@ -1,5 +1,7 @@
 #![allow(clippy::new_ret_no_self)]
 
+include!(concat!(env!("OUT_DIR"), "/templates.rs"));
+
 #[macro_use]
 extern crate log;
 
@@ -15,12 +17,13 @@ mod response_code;
 mod schema;
 pub mod utils;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use actix_files::NamedFile;
-use actix_web::{middleware, web, App, HttpRequest, HttpResponse, HttpServer};
+use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
+use handlers::{attributes, namespace};
 
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 pub type DbConnection = PooledConnection<ConnectionManager<PgConnection>>;
@@ -55,36 +58,29 @@ async fn main() -> std::io::Result<()> {
             .route("/index.html", web::get().to(index))
             .route("/", web::get().to(index))
             .service(actix_files::Files::new("/static", "templates/static").show_files_listing())
-            // Service
+            // Preview
             .service(
                 web::resource("/preview/raw/{fileID}")
                     .to(handlers::web::raw_file_preview::ep_preview_raw),
             )
+            .service(web::resource("/preview/{fileID}").to(handlers::web::preview::ep_preview))
+            // API endpoints
             .service(web::resource("/user/register").to(handlers::user::ep_register))
             .service(web::resource("/user/login").to(handlers::user::ep_login))
             .service(web::resource("/files").to(handlers::list_file::ep_list_files))
             .service(web::resource("/download/file").to(handlers::file_action::ep_file_download))
             .service(web::resource("/file/publish").to(handlers::file_action::ep_publish_file))
             .service(web::resource("/file/{action}").to(handlers::file_action::ep_file_action))
+            .service(web::resource("/attribute/{type}/get").to(attributes::ep_list_attributes))
             .service(
-                web::resource("/attribute/{type}/get").to(handlers::attributes::ep_list_attributes),
-            )
-            .service(
-                web::resource("/attribute/{type}/{action}")
-                    .to(handlers::attributes::ep_attribute_action),
+                web::resource("/attribute/{type}/{action}").to(attributes::ep_attribute_action),
             )
             .service(web::resource("/ping").to(handlers::ping::ep_ping))
-            .service(
-                web::resource("/namespace/create").to(handlers::namespace::ep_create_namespace),
-            )
-            .service(web::resource("/namespaces").to(handlers::namespace::ep_list_namespace))
-            .service(
-                web::resource("/namespace/update").to(handlers::namespace::ep_rename_namespace),
-            )
+            .service(web::resource("/namespace/create").to(namespace::ep_create_namespace))
+            .service(web::resource("/namespaces").to(namespace::ep_list_namespace))
+            .service(web::resource("/namespace/update").to(namespace::ep_rename_namespace))
             .service(web::resource("/upload/file").to(handlers::upload_file::ep_upload))
-            .service(
-                web::resource("/namespace/delete").to(handlers::namespace::ep_delete_namespace),
-            )
+            .service(web::resource("/namespace/delete").to(namespace::ep_delete_namespace))
             // Other
             .default_service(web::route().to(HttpResponse::MethodNotAllowed))
     })

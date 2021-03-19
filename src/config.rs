@@ -12,12 +12,19 @@ use async_std::{
 pub struct Config {
     pub server: ServerConfig,
     pub raw_file_agents: Option<Vec<String>>,
+    pub preview: Preview,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct ServerConfig {
     pub allow_registration: bool,
     pub file_output_path: String,
+    pub external_url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct Preview {
+    pub ace_theme: Option<String>,
 }
 
 impl Config {
