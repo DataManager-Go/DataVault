@@ -11,6 +11,10 @@ use chrono::prelude::*;
 use diesel::{
     dsl::count_star, pg::Pg, prelude::*, result::Error as DieselErr, PgTextExpressionMethods,
 };
+use models::attribute::{
+    AttributeType::{Group, Tag},
+    NewAttribute,
+};
 use std::{fs, path::Path};
 
 use super::attribute::Attribute;
@@ -257,20 +261,24 @@ impl File {
 
         let mut query = files
             // Join namespaces
-            .inner_join(schema::namespaces::table)
             .left_join(schema::file_attributes::table)
             .left_join(
                 schema::attributes::table
-                    .on(schema::attributes::id.eq(schema::file_attributes::id)),
+                    .on(schema::attributes::id.eq(schema::file_attributes::attribute_id)),
             )
+            .inner_join(schema::namespaces::table)
             // Always filter by user_id
             .filter(user_id.eq(user.id))
             .into_boxed::<Pg>();
+
+        let mut ns_id: Option<i32> = None;
 
         // Apply namespace filter
         if !filter.all_namespaces {
             let ns = Namespace::find_by_name(db, &filter.attributes.namespace, user.id)?
                 .ok_or(RestError::NotFound)?;
+
+            ns_id = Some(ns.id);
 
             query = query.filter(namespace_id.eq(ns.id));
         }
@@ -284,33 +292,66 @@ impl File {
 
         let result = query.load::<(
             File,
-            Namespace,
             Option<models::file::attributes::FileAttribute>,
             Option<models::attribute::Attribute>,
+            Namespace,
         )>(db)?;
+
+        // Apply attribute filter
+        let attrs_to_filter = if filter.attributes.groups.is_some()
+            || filter.attributes.tags.is_some()
+        {
+            let tags = if let Some(ref tags) = filter.attributes.tags {
+                NewAttribute::find_multi_by_name(&db, &tags, Tag, user.id, ns_id.unwrap_or(-1))?
+            } else {
+                vec![]
+            };
+
+            // Get and create groups
+            let groups = if let Some(ref groups) = filter.attributes.groups {
+                NewAttribute::find_multi_by_name(&db, &groups, Group, user.id, ns_id.unwrap_or(-1))?
+            } else {
+                vec![]
+            };
+
+            [tags, groups].concat().iter().map(|i| i.id).collect_vec()
+        } else {
+            vec![]
+        };
 
         // Collect multiple files with same ID into one, with multiple all attributes
         let res: Vec<(File, Namespace, Vec<Attribute>)> = result
             .into_iter()
             .group_by(|i| i.0.id)
             .into_iter()
-            .map(|(_, mut file)| {
+            .filter_map(|(_, mut file)| {
                 let e = file.next().unwrap();
                 let mut concatted_file: (File, Namespace, Vec<Attribute>) = (
                     e.0,
-                    e.1,
+                    e.3,
                     // Create a new vector containing the attribute if exists
-                    e.3.map(|i| vec![i]).unwrap_or_default(),
+                    e.2.map(|i| vec![i]).unwrap_or_default(),
                 );
 
                 // Append all attributes from other results
-                concatted_file.2.extend(file.filter_map(|i| i.3));
+                concatted_file.2.extend(file.filter_map(|i| i.2));
 
-                concatted_file
+                // filter out attributes
+                if !attrs_to_filter.is_empty() {
+                    // Only return if concatted_file contains
+                    // of the passed attributes
+                    for file_attr in &concatted_file.2 {
+                        if attrs_to_filter.contains(&file_attr.id) {
+                            return Some(concatted_file);
+                        }
+                    }
+
+                    None
+                } else {
+                    Some(concatted_file)
+                }
             })
             .collect();
-
-        // TODO ADD FILTER
 
         Ok(res)
     }

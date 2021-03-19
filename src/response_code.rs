@@ -166,13 +166,15 @@ struct ErrorResponse {
 }
 
 impl From<r2d2::Error> for RestError {
-    fn from(_: r2d2::Error) -> RestError {
+    fn from(i: r2d2::Error) -> RestError {
+        debug!("{:?}", i);
         RestError::Internal
     }
 }
 
 impl From<diesel::result::Error> for RestError {
-    fn from(_: diesel::result::Error) -> RestError {
+    fn from(i: diesel::result::Error) -> RestError {
+        debug!("{:?}", i);
         RestError::Internal
     }
 }
@@ -183,6 +185,7 @@ pub fn diesel_option<T>(i: diesel::result::Error, origin: T) -> RestError
 where
     T: AsOrigin,
 {
+    debug!("{:?}", i);
     match i {
         diesel::result::Error::NotFound => RestError::DNotFound(origin.as_origin()),
         _ => i.into(),
@@ -191,6 +194,7 @@ where
 
 impl From<std::io::Error> for RestError {
     fn from(e: std::io::Error) -> RestError {
+        debug!("{:?}", e);
         match e.kind() {
             std::io::ErrorKind::NotFound => RestError::DNotFound(Origin::LocalFile),
             _ => RestError::UnknownIO,
