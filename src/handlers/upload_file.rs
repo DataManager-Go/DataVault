@@ -237,6 +237,8 @@ pub async fn save_to_file(
 
     let mut buf = UploadBuffer::new(8);
 
+    let mut contains_binary = false;
+
     // Write part
     while let Some(chunk) = stream.next().await {
         let data = chunk.map_err(|_| RestError::UnknownIO)?;
@@ -254,17 +256,35 @@ pub async fn save_to_file(
         // Write last len(amout) bytes into the buffer
         let dropped = buf.push(&get_last_n(&data, amount));
         // Write dropped bytes into file+hasher
-        write(&mut file, &mut hasher, &dropped).await?;
+        write(
+            &mut file,
+            &mut hasher,
+            &dropped,
+            &mut contains_binary,
+            &mime_type,
+        )
+        .await?;
 
         // Get bytes without those which were written into buffer
         let data = without_last_n(&data, amount);
-        write(&mut file, &mut hasher, &data).await?;
+        write(
+            &mut file,
+            &mut hasher,
+            &data,
+            &mut contains_binary,
+            &mime_type,
+        )
+        .await?;
 
         size += (data.len() + dropped.len()) as i64;
     }
 
     file.flush().await?;
     file.sync_all().await?;
+
+    if !contains_binary && mime_type.is_none() {
+        mime_type = Some(String::from("text/plain"));
+    }
 
     let crc = format!("{:08x}", hasher.finalize()).to_lowercase();
     let crc_rec = String::from_utf8(buf.get())
@@ -279,9 +299,20 @@ pub async fn save_to_file(
 }
 
 /// Write to file and hasher at the same time
-async fn write(file: &mut fs::File, hasher: &mut Hasher, data: &[u8]) -> Result<(), RestError> {
+async fn write(
+    file: &mut fs::File,
+    hasher: &mut Hasher,
+    data: &[u8],
+    contains_binary: &mut bool,
+    mime_type: &Option<String>,
+) -> Result<(), RestError> {
     file.write_all(&data).await?;
     hasher.update(&data);
+
+    if mime_type.is_none() && !*contains_binary && std::str::from_utf8(&data).is_err() {
+        *contains_binary = true;
+    }
+
     Ok(())
 }
 
