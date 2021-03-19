@@ -50,8 +50,8 @@ pub async fn ep_upload(
 
     let upload = UploadHanler {
         payload,
-        config,
-        file,
+        config: config.clone(),
+        file: file.clone(),
         request,
         pool,
         upload_request,
@@ -63,8 +63,11 @@ pub async fn ep_upload(
     // to delete the local file on an error
     let result = upload.handle().await;
     if let Err(err) = result {
-        // TODO DELETE FILE HERE
-        println!("should delete local file: {:?}", err);
+        // Delete local file on fail
+        fs::remove_file(Path::new(&config.server.file_output_path).join(&file.local_name))
+            .await
+            .ok();
+
         Err(err)
     } else {
         Ok(result.unwrap())

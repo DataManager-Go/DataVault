@@ -104,16 +104,20 @@ impl NewAttribute {
     /// Find the passed NewAttribute in DB and returns Some(Attribute) if found
     pub fn find(&self, db: &DbConnection) -> Result<Option<Attribute>, DieselErr> {
         use crate::schema::attributes::dsl::*;
-        let iid: Option<Attribute> = match attributes
+        let mut query = attributes
             .filter(
                 name.eq(&self.name)
                     .and(user_id.eq(self.user_id))
-                    .and(namespace_id.eq(self.namespace_id))
                     .and(type_.eq(self.type_)),
             )
-            .limit(1)
-            .get_result::<Attribute>(db)
-        {
+            .into_boxed();
+
+        // Filter not namespace too if valid
+        if self.namespace_id >= 0 {
+            query = query.filter(namespace_id.eq(self.namespace_id));
+        }
+
+        let iid: Option<Attribute> = match query.limit(1).get_result::<Attribute>(db) {
             Ok(idd) => Some(idd),
             Err(err) => match err {
                 DieselErr::NotFound => None,
@@ -161,7 +165,20 @@ impl NewAttribute {
     ) -> Result<Vec<Attribute>, DieselErr> {
         let res = items
             .iter()
-            .map(|item| Self::find_by_name(db, item, typ, uid, ns_id))
+            .filter_map(|item| {
+                let found = Self::find_by_name(db, item, typ, uid, ns_id);
+                if let Err(ref err) = found {
+                    if *err == diesel::result::Error::NotFound {
+                        // Filter out items which
+                        // weren't found
+                        None
+                    } else {
+                        Some(found)
+                    }
+                } else {
+                    Some(found)
+                }
+            })
             .collect::<Result<Vec<Attribute>, DieselErr>>()?;
 
         Ok(res)
