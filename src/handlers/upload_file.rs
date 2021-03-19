@@ -12,7 +12,7 @@ use crate::{
         namespace::Namespace,
     },
     response_code::RestError,
-    DbConnection, DbPool,
+    utils, DbConnection, DbPool,
 };
 
 use actix_web::{
@@ -126,7 +126,7 @@ impl UploadHanler {
             namespace: self.namespace.name,
             file_id: self.file.id,
             file_name: self.file.name,
-            public_file_name: None,
+            public_file_name: self.file.public_filename,
         }))
     }
 }
@@ -166,6 +166,18 @@ fn select_file(
         file = upload_request.clone().into();
         file.namespace_id = target_namespace.id;
         file.user_id = user.user.id;
+
+        // Make public
+        // TODO check for collisions first
+        if upload_request.public.unwrap_or(false) {
+            file.public_filename = Some(
+                upload_request
+                    .public_name
+                    .as_ref()
+                    .map(|i| i.clone())
+                    .unwrap_or(utils::random_string(25)),
+            );
+        }
     }
 
     Ok((file, target_namespace))

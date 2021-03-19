@@ -1,0 +1,67 @@
+{{ define "content" }}
+{{ if IsVideoPreview .PreviewType }}
+<!-- Video Preview -->
+
+<div class="center">
+    <video controls>
+        <source src='{{.Scheme}}://{{.Host}}/preview/raw/{{.PublicFilename}}' type="{{.MimeType}}">
+        Your browser does not support HTML5 video.
+    </video>
+</div>
+{{ end }}
+
+{{ if IsImagePreview .PreviewType }}
+<!-- image Preview -->
+
+<div class="center">
+    <img src='{{.Scheme}}://{{.Host}}/preview/raw/{{.PublicFilename}}'>
+</div>
+{{ end }}
+
+{{ if IsTextPreview .PreviewType }}
+<div>
+    <table style="border: 0;padding-top: 20px;padding-left: 10px;font-size: 1.2em;">
+        <tr>
+            <td>File: </td>
+            <td>{{.Filename}}</td>
+        </tr>
+        <tr>
+            <td>Size: </td>
+            <td>{{.FileSizeStr}}</td>
+        </tr>
+    </table>
+</div>
+
+<div id="editor" class="content">Loading...</div>
+<button class="fab_dl" onclick="dl()"><i class="material-icons">download</i></button>
+
+<script>
+    function dl() {
+        window.location.href = "{{.Scheme}}://{{.Host}}/preview/raw/{{.PublicFilename}}";
+    }
+</script>
+
+{{ end }}
+
+{{ if  IsDefaultPreview .PreviewType }}
+<!-- Download View -->
+
+<br>
+<span style="text-align: center; color: lightgray">
+    <h1 style="color: lightgray;font-size: 2.5em;">Can't view this shit. You have to press download</h1>
+</span>
+
+<!-- Download button -->
+<div class="centered" style="color: lightgray;">
+    <div style="font-size: 1.8em;">
+        <center> {{.Filename}} </center>
+    </div>
+    <br>
+    <a href="{{.Scheme}}://{{.Host}}/preview/raw/{{.PublicFilename}}" class="downloadButton">Download</a>
+    <br>
+    <center>
+        <span class="cv" style="font-size: 1.5rem;">({{.FileSizeStr}} {{ if .Encrypted}} encrypted{{ end }})</span>
+    </center>
+</div>
+{{ end }}
+{{ end }}

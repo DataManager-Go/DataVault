@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en" style="height: 100%;">
+
+<head>
+    <meta property="og:image" content="{{.Scheme}}://{{.Host}}/preview/raw/{{.PublicFilename}}">
+    <meta property="og:url" content="{{.Scheme}}://{{.Host}}/preview/raw/{{.PublicFilename}}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="A very illegal upload service">
+    <meta property="og:title" content="Not an illegal file" />
+    <style>
+        .centered {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            -ms-transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%);
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            -ms-transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%);
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .downloadButton {
+            background: linear-gradient(to bottom, #f9f9f9 5%, #e9e9e9 100%);
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            border: 1px solid #dcdcdc;
+            display: inline-block;
+            cursor: pointer;
+            color: #707070;
+            font-family: Times New Roman;
+            font-size: 2.5rem;
+            font-weight: bold;
+            padding: 14px 55px;
+            text-decoration: none;
+        }
+
+        .downloadButton:active {
+            position: relative;
+            background-color: #dfdfdf;
+            background: #dfdfdf;
+            top: 1px;
+        }
+
+        .cv {
+            line-height: 60px;
+            text-align: center;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <link href="/static/preview/linenumbers.css" type="text/css" rel="stylesheet" />
+    <script src="/static/preview/linenumbers.js"></script>
+
+</head>
+
+<!-- background="https://images.pexels.com/photos/1242348/pexels-photo-1242348.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940" -->
+
+<body style="background-size: 300% auto;height: 100%;margin: 0;background-color:rgb(42, 45, 47);">
+    {{template "content" .}}
+</body>
+
+{{ if IsTextPreview .PreviewType }}
+<style>
+    html {
+        color: lightgray;
+    }
+
+    #editor {
+        position: absolute;
+        display: inline;
+        overflow-y: none;
+        overflow-x: none;
+        width: 100%;
+    }
+
+    .header {
+        height: 100px;
+        width: 100%;
+        font-size: 2.2em;
+    }
+
+    .content {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        overflow-y: none;
+        top: 100px;
+        overflow-x: none;
+        z-index: 0;
+    }
+
+    .fab_dl {
+        position: fixed;
+        bottom: 1%;
+        right: 1.5%;
+        width: 60px;
+        height: 60px;
+        background: #F44336;
+        background-color: #F44336;
+        color: #FFF;
+        border-radius: 100%;
+        cursor: pointer;
+        outline: none;
+        border: none;
+        font-size: 36px;
+        transition: .3s;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    }
+
+    body .ace_editor .ace_scrollbar {
+        display: none;
+    }
+</style>
+
+<!-- Text preview -->
+<script src="/static/preview/ace/ace.js" type="text/javascript" charset="utf-8"></script>
+<script src="/static/preview/ace/ext-modelist.js" type="text/javascript" charset="utf-8"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<script src="/static/preview/ace/theme-{{.AceTheme}}.js" type="text/javascript" charset="utf-8"></script>
+
+<script>
+    var editor = ace.edit("editor");
+    editor.setTheme("ace/theme/{{.AceTheme}}");
+
+    var modelist = ace.require("ace/ext/modelist");
+    var mode = modelist.getModeForPath( "{{.Filename}}").mode;
+    editor.session.setMode(mode);
+
+    $.get("{{.Scheme}}://{{.Host}}/preview/raw/{{.PublicFilename}}", {}, function (data) {
+        editor.setValue(data, -1);
+        setTimeout(function(){
+            var heightUpdateFunction = function () {
+                // http://stackoverflow.com/questions/11584061/
+                var newHeight =
+                    editor.getSession().getScreenLength()
+                    * editor.renderer.lineHeight
+                    + editor.renderer.scrollBar.getWidth()+1;
+
+                $('#editor').height(newHeight.toString() + "px");
+                $('#editor-section').height(newHeight.toString() + "px");
+                editor.resize();
+            };
+
+            heightUpdateFunction();
+            editor.getSession().on('change', heightUpdateFunction);
+        }, 10);
+    });
+
+</script>
+{{ end }}
+
+</html>
