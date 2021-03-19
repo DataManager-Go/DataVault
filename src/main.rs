@@ -15,14 +15,19 @@ mod response_code;
 mod schema;
 pub mod utils;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+use actix_files::NamedFile;
+use actix_web::{middleware, web, App, HttpRequest, HttpResponse, HttpServer};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 pub type DbConnection = PooledConnection<ConnectionManager<PgConnection>>;
+
+async fn index() -> actix_web::Result<NamedFile> {
+    Ok(NamedFile::open(Path::new("templates/index.html"))?)
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -46,7 +51,11 @@ async fn main() -> std::io::Result<()> {
             .app_data(db.clone())
             // Middlewares
             .wrap(middleware::Logger::default())
-            // Services
+            // Static files
+            .route("/index.html", web::get().to(index))
+            .route("/", web::get().to(index))
+            .service(actix_files::Files::new("/static", "templates/static").show_files_listing())
+            // Service
             .service(
                 web::resource("/preview/raw/{fileID}")
                     .to(handlers::web::raw_file_preview::ep_preview_raw),
