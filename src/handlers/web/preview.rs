@@ -83,7 +83,7 @@ pub fn file_size_humanized(file: &File) -> String {
 }
 
 fn check_is_raw_agent(request: &HttpRequest, config: &Config) -> bool {
-    if let Some(ref raw_agents) = config.raw_file_agents {
+    if let Some(ref raw_agents) = config.server.raw_file_agents {
         if let Some(agent) = request
             .headers()
             .get(USER_AGENT)

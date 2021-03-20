@@ -11,7 +11,6 @@ use async_std::{
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Config {
     pub server: ServerConfig,
-    pub raw_file_agents: Option<Vec<String>>,
     pub preview: Preview,
 }
 
@@ -20,6 +19,7 @@ pub struct ServerConfig {
     pub allow_registration: bool,
     pub file_output_path: String,
     pub external_url: String,
+    pub raw_file_agents: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]

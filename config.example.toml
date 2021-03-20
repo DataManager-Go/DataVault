@@ -1,0 +1,8 @@
+[server]
+allow_registration = true # should be disabled by default
+file_output_path = "./files" # Where he files will be saved locally
+external_url = "http://127.0.0.1:8080" # The url from where your instance will be accessed
+raw_file_agents = ["telegram","curl","discord"] # Always return a raw file if those strings are contained in the requesting UserAgent
+
+[preview]
+ace_theme = "nord_dark" # The ace theme
