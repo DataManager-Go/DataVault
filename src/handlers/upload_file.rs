@@ -174,8 +174,8 @@ fn select_file(
                 upload_request
                     .public_name
                     .as_ref()
-                    .map(|i| i.clone())
-                    .unwrap_or(utils::random_string(25)),
+                    .cloned()
+                    .unwrap_or_else(|| utils::random_string(25)),
             );
         }
     }

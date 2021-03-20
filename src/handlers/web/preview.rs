@@ -49,7 +49,7 @@ pub async fn ep_preview(
         .preview
         .ace_theme
         .as_ref()
-        .unwrap_or_else(|| &DEFAULT_ACE_THEME);
+        .unwrap_or(&DEFAULT_ACE_THEME);
 
     Ok(HttpResponse::Ok().body(render!(templates::preview, host, &ace_theme, &file)))
 }
@@ -77,6 +77,7 @@ fn is_raw_preview_file(file: &File) -> bool {
     file.file_type.contains("application/pdf") || file.file_type.contains("audio")
 }
 
+/// Get a files size human readabe
 pub fn file_size_humanized(file: &File) -> String {
     file.file_size.file_size(options::CONVENTIONAL).unwrap()
 }
@@ -115,6 +116,14 @@ mod tests {
     #[test]
     fn test_preview_type_text() {
         assert_eq!(get_preview_type(&get_file("text/plain")), PreviewType::Text)
+    }
+
+    #[test]
+    fn test_preview_type_fallback_invalid() {
+        assert_eq!(
+            get_preview_type(&get_file("applicatio")),
+            PreviewType::Fallback
+        )
     }
 
     #[test]
