@@ -1,65 +1,70 @@
-{{ if IsVideoPreview .PreviewType }}
-<!-- Video Preview -->
+@use crate::handlers::web::preview::{get_preview_type, PreviewType, file_size_humanized};
+@use crate::models::file::File;
+@(host: &str, file: &File)
 
-<div class="center">
-    <video controls>
-        <source src='@host/preview/raw/file.public_filename.as_ref().unwrap()' type="file.file_type">
-        Your browser does not support HTML5 video.
-    </video>
+@* Video preview *@
+@if get_preview_type(file) == PreviewType::Video {
+  <div class="center">
+      <video controls>
+          <source src='@host/preview/raw/@file.public_filename.as_ref().unwrap()' type="file.file_type">
+          Your browser does not support HTML5 video.
+      </video>
+  </div>
+}
+
+@* Image preview *@
+@if get_preview_type(file) == PreviewType::Image {
+  <div class="center">
+      <img src='@host/preview/raw/@file.public_filename.as_ref().unwrap()'>
+  </div>
+}
+
+@* Text preview *@
+@if get_preview_type(file) == PreviewType::Text {
+  <div>
+      <table style="border: 0;padding-top: 20px;padding-left: 10px;font-size: 1.2em;">
+          <tr>
+              <td>File: </td>
+              <td>@file.name</td>
+          </tr>
+          <tr>
+              <td>Size: </td>
+              <td>@file.file_size</td>
+          </tr>
+      </table>
+  </div>
+
+  <div id="editor" class="content">Loading...</div>
+  <button class="fab_dl" onclick="dl()"><i class="material-icons">download</i></button>
+
+  <script>
+      function dl() @{
+          window.location.href = "@host/preview/raw/@file.public_filename.as_ref().unwrap()";
+      @}
+  </script>
+}
+
+@* Fallback preview *@
+@if get_preview_type(file) == PreviewType::Fallback {
+  <br>
+  <span style="text-align: center; color: lightgray">
+      <h1 style="color: lightgray;font-size: 2.5em;">No preview available. You can download it anyway</h1>
+  </span>
+
+  <!-- download button -->
+  <div class="centered" style="color: lightgray;">
+      <div style="font-size: 1.8em;">
+          <center> @file.name </center>
+      </div>
+      <br>
+      <a href="@host/preview/raw/@file.public_filename.as_ref().unwrap()" class="downloadButton">Download</a>
+      <br>
+      <center>
+        <span class="cv" style="font-size: 1.5rem;">(@file_size_humanized(file)@if file.encryption > 0 { encrypted})</span>
+      </center>
+  </div>
+}
+
+<div style="position:absolute;bottom:10px;right:10px">
+  <a href="https://github.com/DataManager-Go/DataVault" style="color:white">Source</a>
 </div>
-{{ end }}
-
-{{ if IsImagePreview .PreviewType }}
-<!-- image Preview -->
-
-<div class="center">
-    <img src='@host/preview/raw/file.public_filename.as_ref().unwrap()'>
-</div>
-{{ end }}
-
-{{ if IsTextPreview .PreviewType }}
-<div>
-    <table style="border: 0;padding-top: 20px;padding-left: 10px;font-size: 1.2em;">
-        <tr>
-            <td>File: </td>
-            <td>@file.name</td>
-        </tr>
-        <tr>
-            <td>Size: </td>
-            <td>@file.file_size</td>
-        </tr>
-    </table>
-</div>
-
-<div id="editor" class="content">Loading...</div>
-<button class="fab_dl" onclick="dl()"><i class="material-icons">download</i></button>
-
-<script>
-    function dl() {
-        window.location.href = "@host/preview/raw/file.public_filename.as_ref().unwrap()";
-    }
-</script>
-
-{{ end }}
-
-{{ if  IsDefaultPreview .PreviewType }}
-<!-- Download View -->
-
-<br>
-<span style="text-align: center; color: lightgray">
-    <h1 style="color: lightgray;font-size: 2.5em;">Can't view this shit. You have to press download</h1>
-</span>
-
-<!-- Download button -->
-<div class="centered" style="color: lightgray;">
-    <div style="font-size: 1.8em;">
-        <center> @file.name </center>
-    </div>
-    <br>
-    <a href="@host/preview/raw/file.public_filename.as_ref().unwrap()" class="downloadButton">Download</a>
-    <br>
-    <center>
-        <span class="cv" style="font-size: 1.5rem;">(@file.file_size {{ if .Encrypted}} encrypted{{ end }})</span>
-    </center>
-</div>
-{{ end }}

@@ -1,4 +1,6 @@
 @use crate::models::file::File;
+@use crate::handlers::web::preview::{get_preview_type, PreviewType};
+@use super::content_html;
 @(host: &str, ace_theme: &str, file: &File)
 
 <!DOCTYPE html>
@@ -67,28 +69,14 @@
 <!-- background="https://images.pexels.com/photos/1242348/pexels-photo-1242348.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940" -->
 
 <body style="background-size: 300% auto;height: 100%;margin: 0;background-color:rgb(42, 45, 47);">
-  <div>
-    <table style="border: 0;padding-top: 20px;padding-left: 10px;font-size: 1.2em;">
-        <tr>
-            <td>File: </td>
-            <td>@file.name</td>
-        </tr>
-        <tr>
-            <td>Size: </td>
-            <td>@file.file_size</td>
-        </tr>
-    </table>
-</div>
-
-<div id="editor" class="content">Loading...</div>
-<button class="fab_dl" onclick="dl()"><i class="material-icons">download</i></button>
+  @:content_html(host, file)
 </body>
 
-if IsTextPreview .PreviewType
-<style>
-html @{
-  color: lightgray;
-@}
+@if get_preview_type(file) == PreviewType::Text {
+  <style>
+    html @{
+      color: lightgray;
+    @}
 
     #editor @{
       position: absolute;
@@ -136,15 +124,15 @@ html @{
     body .ace_editor .ace_scrollbar @{
       display: none;
     @}
-</style>
+  </style>
 
-<!-- Text preview -->
-<script src="/static/preview/ace/ace.js" type="text/javascript" charset="utf-8"></script>
-<script src="/static/preview/ace/ext-modelist.js" type="text/javascript" charset="utf-8"></script>
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-<script src="/static/preview/ace/theme-@(ace_theme).js" type="text/javascript" charset="utf-8"></script>
+  <!-- Text preview -->
+  <script src="/static/preview/ace/ace.js" type="text/javascript" charset="utf-8"></script>
+  <script src="/static/preview/ace/ext-modelist.js" type="text/javascript" charset="utf-8"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <script src="/static/preview/ace/theme-@(ace_theme).js" type="text/javascript" charset="utf-8"></script>
 
-<script>
+  <script>
     var editor = ace.edit("editor");
     editor.setTheme("ace/theme/@ace_theme");
 
@@ -171,8 +159,8 @@ html @{
             editor.getSession().on('change', heightUpdateFunction);
         @}, 10);
     @});
-
-</script>
+  </script>
+}
 
 
 </html>

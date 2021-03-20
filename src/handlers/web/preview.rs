@@ -1,4 +1,6 @@
 use actix_web::{http::header::USER_AGENT, web, HttpRequest, HttpResponse};
+use humansize::{file_size_opts as options, FileSize};
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use response_code::Origin;
 
@@ -19,7 +21,7 @@ lazy_static! {
 pub enum PreviewType {
     Text,
     Image,
-    Viedo,
+    Video,
     Fallback,
 }
 
@@ -52,11 +54,31 @@ pub async fn ep_preview(
     Ok(HttpResponse::Ok().body(render!(templates::preview, host, &ace_theme, &file)))
 }
 
+pub fn get_preview_type(file: &File) -> PreviewType {
+    let ftype = {
+        let type_ = &file.file_type;
+        if type_.contains('/') {
+            type_.split('/').collect_vec()[0]
+        } else {
+            type_
+        }
+    };
+
+    match ftype {
+        "image" => PreviewType::Image,
+        "video" => PreviewType::Video,
+        "text" => PreviewType::Text,
+        _ => PreviewType::Fallback,
+    }
+}
+
 /// Return true if a file previewed 'raw'
 fn is_raw_preview_file(file: &File) -> bool {
-    file.file_type.is_empty()
-        || file.file_type.contains("application/pdf")
-        || file.file_type.contains("audio")
+    file.file_type.contains("application/pdf") || file.file_type.contains("audio")
+}
+
+pub fn file_size_humanized(file: &File) -> String {
+    file.file_size.file_size(options::CONVENTIONAL).unwrap()
 }
 
 fn check_is_raw_agent(request: &HttpRequest, config: &Config) -> bool {
@@ -71,4 +93,45 @@ fn check_is_raw_agent(request: &HttpRequest, config: &Config) -> bool {
     }
 
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{get_preview_type, PreviewType};
+    use crate::models::file::File;
+
+    fn get_file(mime: &str) -> File {
+        File {
+            file_type: mime.to_owned(),
+            ..File::default()
+        }
+    }
+
+    #[test]
+    fn test_preview_type_img() {
+        assert_eq!(get_preview_type(&get_file("image/png")), PreviewType::Image)
+    }
+
+    #[test]
+    fn test_preview_type_text() {
+        assert_eq!(get_preview_type(&get_file("text/plain")), PreviewType::Text)
+    }
+
+    #[test]
+    fn test_preview_type_fallback() {
+        assert_eq!(
+            get_preview_type(&get_file("application/pdf")),
+            PreviewType::Fallback
+        )
+    }
+
+    #[test]
+    fn test_preview_type_video() {
+        assert_eq!(get_preview_type(&get_file("video/mp4")), PreviewType::Video)
+    }
+
+    #[test]
+    fn test_preview_type_fail() {
+        assert_ne!(get_preview_type(&get_file("video/mp4")), PreviewType::Text)
+    }
 }
