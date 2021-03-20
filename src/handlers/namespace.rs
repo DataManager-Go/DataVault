@@ -23,8 +23,10 @@ pub async fn ep_create_namespace(
         return Err(RestError::IllegalOperation);
     }
 
+    let db = pool.get()?;
+
     web::block(move || -> Result<(), RestError> {
-        namespace::CreateNamespace::new(&req.name, user.user.id).create(&pool.get()?)
+        namespace::CreateNamespace::new(&req.name, user.user.id).create(&db)
     })
     .await??;
 
@@ -62,12 +64,10 @@ pub async fn ep_delete_namespace(
     }
 
     web::block(move || -> Result<(), RestError> {
-        if let Some(ns) = Namespace::find_by_name(&db, &req.name, user.user.id)? {
-            ns.delete(&db, &config)?;
-            Ok(())
-        } else {
-            Err(RestError::DNotFound(Origin::Namespace))
-        }
+        let ns = Namespace::find_by_name(&db, &req.name, user.user.id)?
+            .ok_or(RestError::DNotFound(Origin::Namespace))?;
+
+        ns.delete(&db, &config)
     })
     .await??;
 
@@ -97,12 +97,10 @@ pub async fn ep_rename_namespace(
     let db = pool.get()?;
 
     web::block(move || -> Result<(), RestError> {
-        if let Some(ns) = Namespace::find_by_name(&db, &req.name, user.user.id)? {
-            ns.rename(&db, new_name.as_ref())?;
-            Ok(())
-        } else {
-            Err(RestError::DNotFound(Origin::Namespace))
-        }
+        let ns = Namespace::find_by_name(&db, &req.name, user.user.id)?
+            .ok_or(RestError::DNotFound(Origin::Namespace))?;
+
+        ns.rename(&db, new_name.as_ref())
     })
     .await??;
 

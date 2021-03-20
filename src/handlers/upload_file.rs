@@ -357,7 +357,6 @@ impl UploadBuffer {
                     // ensure to only pop actually overflowing items
                     .skip(left_to_fill)
                     .take(bytes.len() - left_to_fill)
-                    // Put in right order
                     .copied()
                     .collect_vec()
             } else {

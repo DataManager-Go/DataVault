@@ -19,6 +19,8 @@ pub async fn ep_register(
     config: web::Data<Config>,
     req: web::Json<CredentialsRequest>,
 ) -> Result<Json<Success>, RestError> {
+    let req = req.into_inner();
+
     // Don't allow the registration ep if disabled in config
     config
         .server
@@ -30,10 +32,8 @@ pub async fn ep_register(
         return Err(RestError::BadRequest);
     }
 
+    let new_user = User::new(req.username, req.password);
     let db = pool.get()?;
-
-    let new_user = User::new(req.username.clone(), req.password.clone());
-
     web::block(move || new_user.create(&db)).await??;
 
     Ok(SUCCESS)

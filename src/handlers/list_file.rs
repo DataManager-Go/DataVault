@@ -17,11 +17,13 @@ pub async fn ep_list_files(
     request: Json<FileList>,
     user: Authenticateduser,
 ) -> Result<Json<FileListResponse>, RestError> {
-    let found = File::search(&pool.get()?, &request, user.user)?
+    let files = File::search(&pool.get()?, &request, user.user)?
         .into_iter()
+        // Map fond files to a responable format
         .map(|(file, namespace, attr)| -> response::FileItemResponse {
             let mut res: response::FileItemResponse = file.into();
             res.attributes.namespace = namespace.name;
+
             let (tags, groups): (Vec<Attribute>, Vec<Attribute>) = attr
                 .into_iter()
                 .partition(|i| i.type_.eq(&AttributeType::Tag));
@@ -38,5 +40,5 @@ pub async fn ep_list_files(
         })
         .collect();
 
-    Ok(Json(FileListResponse { files: found }))
+    Ok(Json(FileListResponse { files }))
 }
