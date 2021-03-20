@@ -15,7 +15,7 @@ use models::attribute::{
     AttributeType::{Group, Tag},
     NewAttribute,
 };
-use std::{fs, path::Path};
+use std::{fmt::Display, fs, path::Path};
 
 use super::attribute::Attribute;
 
@@ -36,6 +36,12 @@ pub struct File {
     pub namespace_id: i32,
     pub encryption: i32,
     pub checksum: String,
+}
+
+impl Display for File {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#?}", self)
+    }
 }
 
 impl Default for File {
@@ -354,6 +360,15 @@ impl File {
             .collect();
 
         Ok(res)
+    }
+
+    /// Get a public file
+    pub fn get_public_file(db: &DbConnection, public_name: &str) -> Result<File, DieselErr> {
+        use schema::files::dsl::*;
+        files
+            .filter(public_filename.eq(public_name).and(is_public))
+            .limit(1)
+            .get_result(db)
     }
 }
 
