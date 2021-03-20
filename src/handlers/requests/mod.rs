@@ -27,3 +27,9 @@ impl CredentialsRequest {
         self.username.is_empty() || self.password.is_empty()
     }
 }
+
+#[derive(Debug, Deserialize)]
+pub struct StatsRequest {
+    #[serde(rename = "ns")]
+    pub namespace: Option<String>,
+}

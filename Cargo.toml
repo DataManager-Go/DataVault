@@ -14,10 +14,11 @@ actix-files = "0.6.0-beta.3"
 actix-web = "4.0.0-beta.4"
 async-std = "1.9.0"
 base64 = "0.13.0"
+bigdecimal = "=0.1.2"
 bytes = "1.0.1"
 chrono = { version = "0.4.19", features = ["serde"] }
 crc32fast = "1.2.1"
-diesel = { version = "1.4.6", features = ["postgres","r2d2","chrono","64-column-tables"] }
+diesel = { version = "1.4.6", features = ["postgres","r2d2","chrono", "numeric"] }
 dotenv = "0.15.0"
 env_logger = "0.8.3"
 futures = "0.3.13"

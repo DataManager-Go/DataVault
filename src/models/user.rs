@@ -4,7 +4,9 @@ use crate::{
 };
 
 use crate::schema::*;
+use bigdecimal::{BigDecimal, ToPrimitive};
 use diesel::{
+    dsl::{count_star, sum},
     prelude::*,
     result::{DatabaseErrorKind, Error::DatabaseError},
 };
@@ -110,6 +112,53 @@ impl User {
         namespaces
             .filter(user_id.eq(self.id).and(name.eq("default")))
             .first(db)
+    }
+
+    /// Get the total size of all files by a user
+    pub fn total_filesize(&self, db: &DbConnection) -> Result<i64, diesel::result::Error> {
+        use crate::schema::files::dsl::*;
+
+        let res: Option<BigDecimal> = files
+            .filter(user_id.eq(self.id))
+            .select(sum(file_size))
+            .first(db)?;
+
+        Ok(res.map(|i| i.to_i64().unwrap_or(0)).unwrap_or(0))
+    }
+
+    /// Get the amount of all files of a user
+    pub fn total_filecount(&self, db: &DbConnection) -> Result<i64, diesel::result::Error> {
+        use crate::schema::files::dsl::*;
+        files
+            .select(count_star())
+            .filter(user_id.eq(self.id))
+            .get_result(db)
+    }
+
+    /// Get the count of all namespaces of a user
+    pub fn total_attribute_count(
+        &self,
+        db: &DbConnection,
+    ) -> Result<(i64, i64), diesel::result::Error> {
+        use crate::schema::attributes::dsl::*;
+        let res = attributes
+            .select(count_star())
+            .filter(user_id.eq(self.id))
+            .group_by(type_)
+            .get_results(db)?;
+
+        let tags = res.get(0).copied().unwrap_or(0);
+        let groups = res.get(1).copied().unwrap_or(0);
+        Ok((tags, groups))
+    }
+
+    /// Get the count of all namespaces of a user
+    pub fn total_namespace_count(&self, db: &DbConnection) -> Result<i64, diesel::result::Error> {
+        use crate::schema::namespaces::dsl::*;
+        namespaces
+            .select(count_star())
+            .filter(user_id.eq(self.id))
+            .get_result(db)
     }
 }
 

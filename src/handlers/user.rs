@@ -7,7 +7,11 @@ use crate::{
 
 use actix_web::web::{self, Json};
 
-use super::{requests::CredentialsRequest, response::LoginResponse};
+use super::{
+    authentication::Authenticateduser,
+    requests::CredentialsRequest,
+    response::{LoginResponse, StatsResponse},
+};
 
 /// Endpoint for registering new users
 pub async fn ep_register(
@@ -50,4 +54,31 @@ pub async fn ep_login(
         .await??;
 
     Ok(Json(LoginResponse { token }))
+}
+
+/// Endpoint for loggin in users
+pub async fn ep_stats(
+    pool: web::Data<DbPool>,
+    user: Authenticateduser,
+) -> Result<Json<StatsResponse>, RestError> {
+    let db = pool.get()?;
+
+    let res = web::block(move || -> Result<StatsResponse, RestError> {
+        let total_files = user.user.total_filecount(&db)?;
+        let total_filesize = user.user.total_filesize(&db)?;
+        let namespaces_count = user.user.total_namespace_count(&db)?;
+        let (tag_count, group_count) = user.user.total_attribute_count(&db)?;
+
+        Ok(StatsResponse {
+            files_uploaded: total_files,
+            namespaces_count,
+            tag_count,
+            group_count,
+            total_filesize,
+            ..StatsResponse::default()
+        })
+    })
+    .await??;
+
+    Ok(Json(res))
 }

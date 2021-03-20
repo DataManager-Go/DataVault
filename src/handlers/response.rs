@@ -94,8 +94,7 @@ impl From<File> for FileItemResponse {
             attributes: FileAttributes {
                 groups: None,
                 tags: None,
-                // TODO find a way to also return the namespace
-                namespace: "TODO".to_string(),
+                namespace: "UNIMPLEMENTED".to_string(), // namespace has to be set manually
             },
         }
     }
@@ -104,4 +103,20 @@ impl From<File> for FileItemResponse {
 #[derive(Debug, Serialize, Clone)]
 pub struct IDsResponse {
     pub ids: Vec<i32>,
+}
+
+#[derive(Debug, Default, Serialize, Clone, Copy)]
+pub struct StatsResponse {
+    #[serde(rename = "trafficused")]
+    pub traffic_used: i64,
+    #[serde(rename = "filesuploaded")]
+    pub files_uploaded: i64,
+    #[serde(rename = "totalfilesize")]
+    pub total_filesize: i64,
+    #[serde(rename = "namespacecount")]
+    pub namespaces_count: i64,
+    #[serde(rename = "groupcount")]
+    pub group_count: i64,
+    #[serde(rename = "tagcount")]
+    pub tag_count: i64,
 }
