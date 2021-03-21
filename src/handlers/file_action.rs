@@ -131,6 +131,7 @@ pub async fn ep_file_download(
     let mut response = response
         .insert_header(("X-Filename", file.name.as_str()))
         .insert_header(("Checksum", file.checksum.as_str()))
+        .insert_header(("X-FileType", file.file_type.as_str()))
         .insert_header(("X-FileID", file.id))
         .insert_header(("ContentLength", file.file_size));
 
