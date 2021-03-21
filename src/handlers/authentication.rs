@@ -1,7 +1,10 @@
-use crate::models::{login_session, namespace::Namespace};
 use crate::{models::user::User, DbPool};
-use actix_web::{error::ErrorInternalServerError, web::Data, Error, FromRequest, HttpRequest};
-use futures::future::{err, ok, Ready};
+use crate::{
+    models::{login_session, namespace::Namespace},
+    response_code::RestError,
+};
+use actix_web::{web::Data, Error, FromRequest, HttpRequest};
+use futures::future::Ready;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -27,48 +30,41 @@ impl FromRequest for Authenticateduser {
     type Config = ();
 
     fn from_request(req: &HttpRequest, _: &mut actix_web::dev::Payload) -> Self::Future {
-        // Look up session if passed token/header is valid
-        if let Some(token) = get_bearer_token(req) {
-            let db = req.app_data::<Data<DbPool>>().and_then(|i| i.get().ok());
-            if db.is_none() {
-                return err(ErrorInternalServerError("Error"));
+        let res = || -> Result<Authenticateduser, RestError> {
+            // Look up session if passed token/header is valid
+            if let Some(token) = get_bearer_token(req) {
+                let db = req
+                    .app_data::<Data<DbPool>>()
+                    .and_then(|i| i.get().ok())
+                    .ok_or(RestError::Internal)?;
+
+                // Find session by token
+                let user =
+                    login_session::find_session(&db, &token)?.ok_or(RestError::Unauthorized)?;
+
+                // Disable disabled user // **pun not intended!!!
+                if user.disabled {
+                    return Err(RestError::UserDisabled);
+                }
+
+                let mut ns_cache = NS_CACHE.lock().map_err(|_| RestError::Internal)?;
+
+                let default_ns = ns_cache
+                    .entry(user.id)
+                    .or_insert_with(|| user.get_default_namespace(&db).ok());
+
+                // Success
+                Ok(Authenticateduser {
+                    user,
+                    token,
+                    default_ns: default_ns.clone(),
+                })
+            } else {
+                Err(RestError::Unauthorized)
             }
-            let db = db.unwrap();
+        };
 
-            // Find session by token
-            let user = match login_session::find_session(&db, &token) {
-                Ok(user) => match user {
-                    Some(user) => user,
-                    // Token was not found
-                    None => return err(actix_web::error::ErrorUnauthorized("Not authorized")),
-                },
-
-                // An unexpected error occured
-                Err(_) => return err(ErrorInternalServerError("Error")),
-            };
-
-            // Disable disabled user // **pun not intended!!!
-            if user.disabled {
-                return err(actix_web::error::ErrorUnauthorized("User disabled"));
-            }
-
-            let mut ns_cache = match NS_CACHE.lock() {
-                Ok(cache) => cache,
-                Err(_) => return err(actix_web::error::ErrorInternalServerError("Fatal error")),
-            };
-            let default_ns = ns_cache
-                .entry(user.id)
-                .or_insert_with(|| user.get_default_namespace(&db).ok());
-
-            // Success
-            return ok(Authenticateduser {
-                user,
-                token,
-                default_ns: default_ns.clone(),
-            });
-        }
-
-        err(actix_web::error::ErrorUnauthorized("Not authorized"))
+        futures::future::ready(res().map_err(|i| i.into()))
     }
 }
 

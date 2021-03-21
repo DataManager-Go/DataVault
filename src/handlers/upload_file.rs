@@ -234,9 +234,7 @@ pub async fn save_to_file(
 
     // Use header to determine whether the file should be decompressed
     let mut stream = Decompress::from_headers(body, request.headers());
-
     let mut buf = UploadBuffer::new(8);
-
     let mut contains_binary = false;
 
     // Write part
