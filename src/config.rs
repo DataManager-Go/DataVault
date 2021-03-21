@@ -20,6 +20,8 @@ pub struct ServerConfig {
     pub file_output_path: String,
     pub external_url: String,
     pub raw_file_agents: Option<Vec<String>>,
+    pub html_files: Option<String>,
+    pub listen_address: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]

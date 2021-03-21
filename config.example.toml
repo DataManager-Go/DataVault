@@ -1,4 +1,5 @@
 [server]
+listen_address = "127.0.0.1:8080" # The address and port to listen on
 allow_registration = true # should be disabled by default
 file_output_path = "./files" # Where he files will be saved locally
 external_url = "http://127.0.0.1:8080" # The url from where your instance will be accessed

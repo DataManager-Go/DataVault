@@ -39,12 +39,24 @@ async fn main() -> std::io::Result<()> {
     let config = config::Config::new().await.expect("Couldn't load config");
 
     // Create local filepath if net yet exists
-    let local_path = Path::new(&config.server.file_output_path);
-    if !local_path.exists() {
-        std::fs::create_dir_all(local_path).expect("Coudln't create local file directory");
+    let local_file_path = Path::new(&config.server.file_output_path);
+    if !local_file_path.exists() {
+        std::fs::create_dir_all(local_file_path).expect("Coudln't create local file directory");
+    }
+
+    let ressorce_dir = config
+        .server
+        .html_files
+        .clone()
+        .unwrap_or("html".to_string());
+
+    // Check for html ressources
+    if !Path::new(&ressorce_dir).exists() {
+        panic!("Missing html files");
     }
 
     let db = db::connect();
+    let listen_address = config.server.listen_address.clone();
 
     HttpServer::new(move || {
         App::new()
@@ -85,7 +97,7 @@ async fn main() -> std::io::Result<()> {
             // Other
             .default_service(web::route().to(HttpResponse::MethodNotAllowed))
     })
-    .bind("127.0.0.1:8080")?
+    .bind(listen_address)?
     .run()
     .await
 }
