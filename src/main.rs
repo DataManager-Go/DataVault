@@ -29,7 +29,7 @@ pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 pub type DbConnection = PooledConnection<ConnectionManager<PgConnection>>;
 
 async fn index() -> actix_web::Result<NamedFile> {
-    Ok(NamedFile::open(Path::new("templates/index.html"))?)
+    Ok(NamedFile::open(Path::new("html/index.html"))?)
 }
 
 #[actix_web::main]
@@ -57,7 +57,7 @@ async fn main() -> std::io::Result<()> {
             // Static files
             .route("/index.html", web::get().to(index))
             .route("/", web::get().to(index))
-            .service(actix_files::Files::new("/static", "templates/static").show_files_listing())
+            .service(actix_files::Files::new("/static", "html/static").show_files_listing())
             // Preview
             .service(
                 web::resource("/preview/raw/{fileID}")
