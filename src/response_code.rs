@@ -208,6 +208,17 @@ impl From<BlockingError> for RestError {
     }
 }
 
+impl From<zip::result::ZipError> for RestError {
+    fn from(z: zip::result::ZipError) -> RestError {
+        debug!("{:?}", z);
+        match z {
+            zip::result::ZipError::Io(io) => io.into(),
+            zip::result::ZipError::FileNotFound => RestError::DNotFound(Origin::LocalFile),
+            _ => RestError::Internal,
+        }
+    }
+}
+
 pub fn login_error(err: diesel::result::Error) -> RestError {
     match err {
         diesel::result::Error::NotFound => RestError::DNotFound(Origin::User),

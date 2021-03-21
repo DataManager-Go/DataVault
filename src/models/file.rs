@@ -11,11 +11,13 @@ use chrono::prelude::*;
 use diesel::{
     dsl::count_star, pg::Pg, prelude::*, result::Error as DieselErr, PgTextExpressionMethods,
 };
+use humansize::{file_size_opts, FileSize};
 use models::attribute::{
     AttributeType::{Group, Tag},
     NewAttribute,
 };
 use std::{fmt::Display, fs, path::Path};
+use zip::result::ZipError;
 
 use super::attribute::Attribute;
 
@@ -370,6 +372,89 @@ impl File {
             .limit(1)
             .get_result(db)
     }
+
+    /// If the provided file is in a suppoted archive format, retrieve its archive metadata
+    pub fn get_archive_metadata(&self, config: &Config) -> Result<Metadata, RestError> {
+        let content_type = self.file_type.as_str();
+        Ok(match content_type {
+            "application/x-tar" => Metadata {
+                archive_type: String::from("Tar"),
+                files: self.get_tar_metadata(config)?,
+            },
+            "application/zip" => Metadata {
+                archive_type: String::from("Zip"),
+                files: self.get_zip_metadata(config)?,
+            },
+            _ => return Err(RestError::NotAllowed),
+        })
+    }
+
+    /// Get a tar files archives metadata
+    fn get_tar_metadata(&self, config: &Config) -> Result<Vec<ArchiveFile>, RestError> {
+        let file =
+            std::fs::File::open(Path::new(&config.server.file_output_path).join(&self.local_name))?;
+        let mut t = tar::Archive::new(file);
+
+        let e = t
+            .entries()?
+            .into_iter()
+            .map(|i| {
+                i.map(|j| {
+                    let header = j.header();
+                    ArchiveFile {
+                        name: header
+                            .path()
+                            .ok()
+                            .and_then(|path| path.to_str().map(|k| k.to_string()))
+                            .unwrap_or("-- Error --".to_string()),
+                        size: header.size().unwrap_or(0),
+                    }
+                })
+            })
+            .collect::<Result<Vec<ArchiveFile>, std::io::Error>>()?;
+
+        Ok(e)
+    }
+
+    /// Get a zip files archives metadata
+    fn get_zip_metadata(&self, config: &Config) -> Result<Vec<ArchiveFile>, RestError> {
+        let file =
+            std::fs::File::open(Path::new(&config.server.file_output_path).join(&self.local_name))?;
+        let mut z = zip::ZipArchive::new(file)?;
+
+        let e = (0..z.len())
+            .into_iter()
+            .map(|i| {
+                z.by_index_raw(i).map(|j| ArchiveFile {
+                    name: j.name().to_owned(),
+                    size: j.size(),
+                })
+            })
+            .collect::<Result<Vec<ArchiveFile>, ZipError>>()?;
+
+        Ok(e)
+    }
+}
+
+pub struct Metadata {
+    pub archive_type: String,
+    pub files: Vec<ArchiveFile>,
+}
+
+pub struct ArchiveFile {
+    pub name: String,
+    pub size: u64,
+}
+
+impl ArchiveFile {
+    pub fn get_size(&self) -> String {
+        file_size_humanized(self.size)
+    }
+}
+
+/// Get a files size human readabe
+pub fn file_size_humanized(size: u64) -> String {
+    size.file_size(file_size_opts::CONVENTIONAL).unwrap()
 }
 
 impl Into<NewFile> for File {

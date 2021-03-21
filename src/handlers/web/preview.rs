@@ -22,6 +22,7 @@ pub enum PreviewType {
     Text,
     Image,
     Video,
+    Archive,
     Fallback,
 }
 
@@ -51,24 +52,35 @@ pub async fn ep_preview(
         .as_ref()
         .unwrap_or(&DEFAULT_ACE_THEME);
 
-    Ok(HttpResponse::Ok().body(render!(templates::preview, host, &ace_theme, &file)))
+    Ok(HttpResponse::Ok().body(render!(
+        templates::preview,
+        host,
+        &ace_theme,
+        &file,
+        &config
+    )))
 }
 
+/// Returns the type of preview the frontend should load
 pub fn get_preview_type(file: &File) -> PreviewType {
-    let ftype = {
-        let type_ = &file.file_type;
-        if type_.contains('/') {
-            type_.split('/').collect_vec()[0]
+    let ftype = &file.file_type;
+    let (type_, extension) = {
+        if ftype.contains('/') {
+            let split = ftype.split('/').collect_vec();
+            (split[0], split[1])
         } else {
-            type_
+            (ftype.as_str(), "")
         }
     };
 
-    match ftype {
+    match type_ {
         "image" => PreviewType::Image,
         "video" => PreviewType::Video,
         "text" => PreviewType::Text,
-        _ => PreviewType::Fallback,
+        _ => match extension {
+            "x-tar" | "zip" => PreviewType::Archive,
+            _ => PreviewType::Fallback,
+        },
     }
 }
 

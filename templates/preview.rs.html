@@ -1,7 +1,8 @@
 @use crate::models::file::File;
+@use crate::config::Config;
 @use crate::handlers::web::preview::{get_preview_type, PreviewType};
 @use super::content_html;
-@(host: &str, ace_theme: &str, file: &File)
+@(host: &str, ace_theme: &str, file: &File, config: &Config)
 
 <!DOCTYPE html>
 <html lang="en" style="height: 100%;">
@@ -69,7 +70,7 @@
 <!-- background="https://images.pexels.com/photos/1242348/pexels-photo-1242348.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940" -->
 
 <body style="background-size: 300% auto;height: 100%;margin: 0;background-color:rgb(42, 45, 47);">
-  @:content_html(host, file)
+  @:content_html(host, file, config)
 </body>
 
 @if get_preview_type(file) == PreviewType::Text {

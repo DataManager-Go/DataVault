@@ -34,8 +34,10 @@ ructe = "0.13.2"
 serde = "1.0.124"
 serde_json = "1.0.64"
 sha2 = "0.9.3"
+tar = "0.4.33"
 thiserror = "1.0.24"
 toml = "0.5.8"
+zip = "0.5.11"
 
 [dev-dependencies]
 rand = "0.8.3"

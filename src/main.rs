@@ -48,7 +48,7 @@ async fn main() -> std::io::Result<()> {
         .server
         .html_files
         .clone()
-        .unwrap_or("html".to_string());
+        .unwrap_or_else(|| "html".to_string());
 
     // Check for html ressources
     if !Path::new(&ressorce_dir).exists() {
