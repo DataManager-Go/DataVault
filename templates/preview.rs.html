@@ -63,17 +63,21 @@
     </style>
     <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
     <link href="/static/preview/linenumbers.css" type="text/css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="/static/preview/linenumbers.js"></script>
 
-</head>
+    @if get_preview_type(file) == PreviewType::Archive {
+      <link href="/static/preview/main.css" type="text/css" rel="stylesheet" />
+      <link href="/static/preview/nord.css" type="text/css" rel="stylesheet" />
+    }
 
-<!-- background="https://images.pexels.com/photos/1242348/pexels-photo-1242348.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940" -->
+</head>
 
 <body style="background-size: 300% auto;height: 100%;margin: 0;background-color:rgb(42, 45, 47);">
   @:content_html(host, file, config)
 </body>
 
-@if get_preview_type(file) == PreviewType::Text {
+@if matches!(get_preview_type(file), PreviewType::Text | PreviewType::Archive) {
   <style>
     html @{
       color: lightgray;
@@ -105,8 +109,8 @@
 
     .fab_dl @{
       position: fixed;
-      bottom: 1%;
-      right: 1.5%;
+      bottom: 35px;
+      right: 30px;
       width: 60px;
       height: 60px;
       background: #F44336;
@@ -127,10 +131,18 @@
     @}
   </style>
 
+  <script>
+      function dl() @{
+          window.location.href = "@host/preview/raw/@file.public_filename.as_ref().unwrap()";
+      @}
+  </script>
+}
+
+
+@if get_preview_type(file) == PreviewType::Text {
   <!-- Text preview -->
   <script src="/static/preview/ace/ace.js" type="text/javascript" charset="utf-8"></script>
   <script src="/static/preview/ace/ext-modelist.js" type="text/javascript" charset="utf-8"></script>
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <script src="/static/preview/ace/theme-@(ace_theme).js" type="text/javascript" charset="utf-8"></script>
 
   <script>
@@ -140,6 +152,10 @@
     var modelist = ace.require("ace/ext/modelist");
     var mode = modelist.getModeForPath( "@file.name").mode;
     editor.session.setMode(mode);
+
+    editor.setOptions(@{
+      fontSize: "11pt"
+    @});
 
     $.get("@host/preview/raw/@file.public_filename.as_ref().unwrap()", @{@}, function (data) @{
         editor.setValue(data, -1);
@@ -162,6 +178,5 @@
     @});
   </script>
 }
-
 
 </html>

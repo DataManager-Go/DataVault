@@ -17,6 +17,7 @@ use models::attribute::{
     NewAttribute,
 };
 use std::{fmt::Display, fs, path::Path};
+use tar::EntryType;
 use zip::result::ZipError;
 
 use super::attribute::Attribute;
@@ -406,8 +407,9 @@ impl File {
                             .path()
                             .ok()
                             .and_then(|path| path.to_str().map(|k| k.to_string()))
-                            .unwrap_or("-- Error --".to_string()),
+                            .unwrap_or_else(|| "-- Error --".to_string()),
                         size: header.size().unwrap_or(0),
+                        is_dir: header.entry_type() == EntryType::Directory,
                     }
                 })
             })
@@ -428,6 +430,7 @@ impl File {
                 z.by_index_raw(i).map(|j| ArchiveFile {
                     name: j.name().to_owned(),
                     size: j.size(),
+                    is_dir: j.is_dir(),
                 })
             })
             .collect::<Result<Vec<ArchiveFile>, ZipError>>()?;
@@ -444,11 +447,24 @@ pub struct Metadata {
 pub struct ArchiveFile {
     pub name: String,
     pub size: u64,
+    pub is_dir: bool,
 }
 
 impl ArchiveFile {
+    pub fn get_name(&self) -> String {
+        if self.is_dir && !self.name.ends_with('/') {
+            format!("{}/", self.name)
+        } else {
+            self.name.clone()
+        }
+    }
+
     pub fn get_size(&self) -> String {
-        file_size_humanized(self.size)
+        if self.is_dir {
+            String::from("")
+        } else {
+            file_size_humanized(self.size)
+        }
     }
 }
 

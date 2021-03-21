@@ -5,17 +5,34 @@
 
 @* Archive preview *@
 @if get_preview_type(file) == PreviewType::Archive {
+  <button class="fab_dl" onclick="dl()"><i class="material-icons">download</i></button>
   <div class="center" style="color:white">
     @if let Ok(metadata) = file.get_archive_metadata(config) {
     <h2>@metadata.archive_type content:</h2><br>
-      <table>
-      @for i in metadata.files {
-        <tr>
-          <td>@i.name</td>
-          <td>@i.get_size()</td>
-        </tr>
-      }
-      </table>
+        <div id="table" class="wrap-table100">
+          <div class="table100">
+             <table id="fileTable">
+                <thead>
+                   <tr class="table100-head">
+                      <th class="column">Name</th>
+                      <th class="column">Size</th>
+                   </tr>
+                </thead>
+                <tbody id="tableBody">
+                  @for i in metadata.files {
+                    <tr>
+                      <td>
+                        @i.get_name()
+                      </td>
+                      <td>
+                        @i.get_size()
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+             </table>
+          </div>
+        </div>
     } else {
       An error occured while retrieving archive content metadata!
     }
@@ -50,19 +67,13 @@
           </tr>
           <tr>
               <td>Size: </td>
-              <td>@file.file_size</td>
+              <td>@file_size_humanized(file)</td>
           </tr>
       </table>
   </div>
 
   <div id="editor" class="content">Loading...</div>
   <button class="fab_dl" onclick="dl()"><i class="material-icons">download</i></button>
-
-  <script>
-      function dl() @{
-          window.location.href = "@host/preview/raw/@file.public_filename.as_ref().unwrap()";
-      @}
-  </script>
 }
 
 @* Fallback preview *@
@@ -86,6 +97,6 @@
   </div>
 }
 
-<div style="position:fixed;bottom:10px;right:10px">
+<div style="position:fixed;bottom:10px;left:10px">
   <a href="https://github.com/DataManager-Go/DataVault" style="color:white">Source</a>
 </div>

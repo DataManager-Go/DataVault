@@ -1,0 +1,70 @@
+.container-table100 {
+  width: 100%;
+  min-height: 100vh;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -moz-box;
+  display: -ms-flexbox;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+table {
+  border-spacing: 1;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+}
+thead tr th {
+  text-align: left;
+}
+table * {
+  position: relative;
+}
+table td, table th {
+  padding-left: 8px;
+  min-width: 100px
+}
+table thead tr {
+  height: 60px;
+}
+table tbody tr {
+  height: 25px;
+}
+table tbody tr:last-child {
+  border: 0;
+}
+table td, table th {
+  text-align: left;
+}
+table td.l, table th.l {
+  text-align: right;
+}
+table td.c, table th.c {
+  text-align: center;
+}
+table td.r, table th.r {
+  text-align: center;
+}
+.table100-head th{
+  font-family: OpenSans-Regular;
+  font-size: 18px;
+  color: #fff;
+  line-height: 1;
+  font-weight: unset;
+}
+tbody tr {
+  font-family: OpenSans-Regular;
+  font-size: 15px;
+  color: var(--nord5);
+  line-height: 1;
+  font-weight: unset;
+  border: solid var(--nord1);
+  border-width: 1px 0;
+}
+.column{
+  width: 100%;
+}
+
