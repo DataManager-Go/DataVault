@@ -20,17 +20,18 @@ pub mod utils;
 use std::path::Path;
 
 use actix_files::NamedFile;
-use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+use actix_web::{
+    dev,
+    http::{self, header::LOCATION, HeaderValue},
+    middleware::{self, ErrorHandlerResponse, ErrorHandlers},
+    web, App, HttpResponse, HttpServer,
+};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use handlers::{attributes, namespace};
 
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 pub type DbConnection = PooledConnection<ConnectionManager<PgConnection>>;
-
-async fn index() -> actix_web::Result<NamedFile> {
-    Ok(NamedFile::open(Path::new("html/index.html"))?)
-}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -70,6 +71,7 @@ async fn main() -> std::io::Result<()> {
             .route("/index.html", web::get().to(index))
             .route("/", web::get().to(index))
             .service(actix_files::Files::new("/static", "html/static").show_files_listing())
+            .default_service(actix_files::Files::new("/static", "html/static").show_files_listing())
             // Preview
             .service(
                 web::resource("/preview/raw/{fileID}")
@@ -95,9 +97,26 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/upload/file").to(handlers::upload_file::ep_upload))
             .service(web::resource("/namespace/delete").to(namespace::ep_delete_namespace))
             // Other
-            .default_service(web::route().to(HttpResponse::MethodNotAllowed))
+            .default_service(web::route().to(HttpResponse::NotFound))
+            .wrap(ErrorHandlers::new().handler(http::StatusCode::NOT_FOUND, redirect_home_handler))
     })
     .bind(listen_address)?
     .run()
     .await
+}
+
+/// Serve index file
+async fn index() -> actix_web::Result<NamedFile> {
+    Ok(NamedFile::open(Path::new("html/index.html"))?)
+}
+
+/// Redirect to home
+#[allow(clippy::clippy::unnecessary_wraps)]
+fn redirect_home_handler<B>(
+    mut res: dev::ServiceResponse<B>,
+) -> actix_web::Result<ErrorHandlerResponse<B>> {
+    res.headers_mut()
+        .insert(LOCATION, HeaderValue::from_static("/"));
+    *res.response_mut().status_mut() = http::StatusCode::MOVED_PERMANENTLY;
+    Ok(ErrorHandlerResponse::Response(res))
 }
