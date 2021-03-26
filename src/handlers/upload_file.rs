@@ -239,7 +239,7 @@ pub async fn save_to_file(
 
     // Write part
     while let Some(chunk) = stream.next().await {
-        let data = chunk.map_err(|_| RestError::UnknownIO)?;
+        let data = chunk.map_err(|_| RestError::UnknownIo)?;
 
         if data.is_empty() {
             continue;
