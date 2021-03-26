@@ -473,6 +473,7 @@ pub fn file_size_humanized(size: u64) -> String {
     size.file_size(file_size_opts::CONVENTIONAL).unwrap()
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<NewFile> for File {
     fn into(self) -> NewFile {
         NewFile {

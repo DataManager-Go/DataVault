@@ -192,7 +192,7 @@ impl NewAttribute {
         user_id: i32,
         namespace_id: i32,
     ) -> Result<Vec<Attribute>, DieselErr> {
-        Ok(items
+        items
             .iter()
             .map(|item| -> Result<Attribute, DieselErr> {
                 let attr = NewAttribute {
@@ -209,7 +209,7 @@ impl NewAttribute {
                     None => Ok(attr.create(db)?),
                 }
             })
-            .collect::<Result<Vec<Attribute>, DieselErr>>()?)
+            .collect::<Result<Vec<Attribute>, DieselErr>>()
     }
 }
 

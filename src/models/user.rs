@@ -38,20 +38,20 @@ impl User {
     pub fn find_by_name(db: &DbConnection, name: &str) -> Result<User, RestError> {
         use crate::schema::users::dsl::*;
 
-        Ok(users
+        users
             .filter(username.eq(name))
             .first::<User>(db)
-            .map_err(response_code::login_error)?)
+            .map_err(response_code::login_error)
     }
 
     // Find a user by its ID
     pub fn find_by_id(db: &DbConnection, user_id: i32) -> Result<User, RestError> {
         use crate::schema::users::dsl::*;
 
-        Ok(users
+        users
             .filter(id.eq(user_id))
             .first::<User>(db)
-            .map_err(response_code::login_error)?)
+            .map_err(response_code::login_error)
     }
 
     /// Create a new user session

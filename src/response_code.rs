@@ -100,8 +100,8 @@ pub enum RestError {
     #[error("Unknown Internal Error")]
     Internal,
 
-    #[error("Internal IO Error")]
-    UnknownIO,
+    #[error("Internal Io Error")]
+    UnknownIo,
 
     #[error("Partial content received")]
     PartialContent,
@@ -112,7 +112,7 @@ impl RestError {
         match self {
             Self::NotFound | Self::DNotFound(_) => "NotFound".to_string(),
             Self::Forbidden => "Forbidden".to_string(),
-            Self::UnknownIO => "Unknown IO".to_string(),
+            Self::UnknownIo => "Unknown IO".to_string(),
             Self::Internal => "Unknown".to_string(),
             Self::Unauthorized => "Unauthorized".to_string(),
             Self::AlreadyExists => "AlreadyExists".to_string(),
@@ -197,7 +197,7 @@ impl From<std::io::Error> for RestError {
         debug!("{:?}", e);
         match e.kind() {
             std::io::ErrorKind::NotFound => RestError::DNotFound(Origin::LocalFile),
-            _ => RestError::UnknownIO,
+            _ => RestError::UnknownIo,
         }
     }
 }

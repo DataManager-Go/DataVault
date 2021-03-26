@@ -104,6 +104,7 @@ impl FromRequest for UploadRequest {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<File> for UploadRequest {
     fn into(self) -> File {
         File {
