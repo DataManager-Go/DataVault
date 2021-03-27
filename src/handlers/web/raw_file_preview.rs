@@ -1,6 +1,9 @@
 use std::{fs, path::Path};
 
-use actix_web::{http::header::CONTENT_LENGTH, web, HttpResponse};
+use actix_web::{
+    http::header::{self, CONTENT_LENGTH},
+    web, HttpResponse,
+};
 
 use crate::{config::Config, models::file::File, response_code::RestError, DbPool};
 
@@ -35,6 +38,12 @@ pub async fn serve_file(file: &File, config: &Config) -> Result<HttpResponse, Re
     // build response
     let mut response = HttpResponse::Ok();
     response.insert_header((CONTENT_LENGTH, file.file_size));
+
+    if let Some(ref cors_allow) = config.server.cors_allow {
+        for cors_item in cors_allow {
+            response.append_header((header::ACCESS_CONTROL_ALLOW_ORIGIN, cors_item.to_owned()));
+        }
+    }
 
     if !file.file_type.is_empty() {
         response.insert_header(("Content-Type", format!("{};charset=UTF-8", file.file_type)));
