@@ -1,14 +1,8 @@
 use std::{fs, path::Path};
 
 use actix_web::{http::header::CONTENT_LENGTH, web, HttpResponse};
-use response_code::Origin;
 
-use crate::{
-    config::Config,
-    models::file::File,
-    response_code::{self, RestError},
-    DbPool,
-};
+use crate::{config::Config, models::file::File, response_code::RestError, DbPool};
 
 use super::super::chunked::ChunkedReadFile;
 
@@ -21,9 +15,13 @@ pub async fn ep_preview_raw(
     let db = pool.get()?;
 
     // Find file
-    let file = web::block(move || File::get_public_file(&db, &file_id))
-        .await?
-        .map_err(|i| response_code::diesel_option(i, Origin::File))?;
+    let file = match web::block(move || File::get_public_file(&db, &file_id)).await? {
+        Ok(o) => o,
+        Err(err) => match err {
+            diesel::result::Error::NotFound => return Ok(crate::to_home()),
+            _ => return Err(err.into()),
+        },
+    };
 
     serve_file(&file, &config).await
 }
@@ -31,7 +29,7 @@ pub async fn ep_preview_raw(
 /// Serves the content of the file
 pub async fn serve_file(file: &File, config: &Config) -> Result<HttpResponse, RestError> {
     if !file.is_public {
-        return Err(RestError::IllegalOperation);
+        return Ok(crate::to_home());
     }
 
     // build response

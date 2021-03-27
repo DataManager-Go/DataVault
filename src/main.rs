@@ -21,9 +21,8 @@ use std::path::Path;
 
 use actix_files::NamedFile;
 use actix_web::{
-    dev,
-    http::{self, header::LOCATION, HeaderValue},
-    middleware::{self, ErrorHandlerResponse, ErrorHandlers},
+    http::{header::LOCATION, HeaderValue},
+    middleware::{self},
     web, App, HttpResponse, HttpServer,
 };
 use diesel::prelude::*;
@@ -97,8 +96,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/upload/file").to(handlers::upload_file::ep_upload))
             .service(web::resource("/namespace/delete").to(namespace::ep_delete_namespace))
             // Other
-            .default_service(web::route().to(HttpResponse::NotFound))
-            .wrap(ErrorHandlers::new().handler(http::StatusCode::NOT_FOUND, redirect_home_handler))
+            .default_service(web::route().to(to_home))
     })
     .bind(listen_address)?
     .run()
@@ -110,13 +108,9 @@ async fn index() -> actix_web::Result<NamedFile> {
     Ok(NamedFile::open(Path::new("html/index.html"))?)
 }
 
-/// Redirect to home
-#[allow(clippy::clippy::unnecessary_wraps)]
-fn redirect_home_handler<B>(
-    mut res: dev::ServiceResponse<B>,
-) -> actix_web::Result<ErrorHandlerResponse<B>> {
-    res.headers_mut()
-        .insert(LOCATION, HeaderValue::from_static("/"));
-    *res.response_mut().status_mut() = http::StatusCode::MOVED_PERMANENTLY;
-    Ok(ErrorHandlerResponse::Response(res))
+/// Serve index file
+fn to_home() -> HttpResponse {
+    HttpResponse::MovedPermanently()
+        .insert_header((LOCATION, HeaderValue::from_static("/")))
+        .finish()
 }

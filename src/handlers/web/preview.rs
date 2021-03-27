@@ -2,14 +2,8 @@ use actix_web::{http::header::USER_AGENT, web, HttpRequest, HttpResponse};
 use humansize::{file_size_opts as options, FileSize};
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use response_code::Origin;
 
-use crate::{
-    config::Config,
-    models::file::File,
-    response_code::{self, RestError},
-    templates, DbPool,
-};
+use crate::{config::Config, models::file::File, response_code::RestError, templates, DbPool};
 
 use super::raw_file_preview;
 
@@ -36,9 +30,13 @@ pub async fn ep_preview(
     let db = pool.get()?;
 
     // Find file
-    let file = web::block(move || File::get_public_file(&db, &file_id))
-        .await?
-        .map_err(|i| response_code::diesel_option(i, Origin::File))?;
+    let file = match web::block(move || File::get_public_file(&db, &file_id)).await? {
+        Ok(o) => o,
+        Err(err) => match err {
+            diesel::result::Error::NotFound => return Ok(crate::to_home()),
+            _ => return Err(err.into()),
+        },
+    };
 
     // return raw fie if the requesing useragent is in the raw_file_agents list
     if check_is_raw_agent(&request, &config) || is_raw_preview_file(&file) {
