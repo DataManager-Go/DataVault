@@ -285,7 +285,7 @@ impl File {
         // Apply namespace filter
         if !filter.all_namespaces {
             let ns = Namespace::find_by_name(db, &filter.attributes.namespace, user.id)?
-                .ok_or(RestError::NotFound)?;
+                .ok_or(RestError::DNotFound(Origin::Namespace))?;
 
             ns_id = Some(ns.id);
 

@@ -99,7 +99,7 @@ impl Namespace {
     pub fn list(db: &DbConnection, user: &User) -> Result<Vec<Namespace>, RestError> {
         Namespace::belonging_to(user)
             .load::<Namespace>(db)
-            .map_err(|i| i.into())
+            .map_err(|i| response_code::diesel_option(i, Origin::Namespace))
     }
 
     /// Delete a namespace
