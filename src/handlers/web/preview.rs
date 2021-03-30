@@ -9,6 +9,7 @@ use super::raw_file_preview;
 
 lazy_static! {
     pub static ref DEFAULT_ACE_THEME: String = String::from("nord_dark");
+    pub static ref DEFAULT_PREVIEW_FS_LIMIT: i64 = 30 * 1024; // 30kb
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -38,8 +39,18 @@ pub async fn ep_preview(
         },
     };
 
+    let preview_type = get_preview_type(&file);
+    let preview_size_limit = config
+        .server
+        .max_preview_filesize
+        .map(|i| i as i64)
+        .unwrap_or(*DEFAULT_PREVIEW_FS_LIMIT);
+
     // return raw fie if the requesing useragent is in the raw_file_agents list
-    if check_is_raw_agent(&request, &config) || is_raw_preview_file(&file) {
+    if (file.file_size > preview_size_limit && preview_type == PreviewType::Text)
+        || check_is_raw_agent(&request, &config)
+        || is_raw_preview_file(&file)
+    {
         return raw_file_preview::serve_file(&file, &config).await;
     }
 

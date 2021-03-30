@@ -22,6 +22,7 @@ pub struct ServerConfig {
     pub raw_file_agents: Option<Vec<String>>,
     pub html_files: Option<String>,
     pub cors_allow: Option<Vec<String>>,
+    pub max_preview_filesize: Option<u64>,
     pub listen_address: String,
 }
 
