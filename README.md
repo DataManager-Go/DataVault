@@ -1,7 +1,7 @@
 # DataVault
 A modern, centralized data managing and sharing solution
 
-## Compatible cliens
+## Compatible clients
 - [CLI](https://github.com/DataManager-Go/DataManagerCLI)
 
 # Requirements
